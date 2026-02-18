@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Заказ принят</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f4f7fb; margin: 0; color: #1d2433; }
+      .container { max-width: 720px; margin: 0 auto; padding: 24px; }
+      .card { background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 16px; }
+      .ok { color: #146c43; font-weight: 700; }
+      a { color: #0d6efd; }
+      ul { margin: 8px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <p class="ok">Заказ принят: #{{ order.id }}</p>
+        <p>Статус: {{ order.get_status_display }}</p>
+        <p>Канал: {{ order.channel }}</p>
+        <p>Адрес: {{ order.delivery_address|default:"не указан" }}</p>
+        <p>Не хватает полей:</p>
+        <ul>
+          {% for field in attempt.missing_fields %}
+            <li>{{ field }}</li>
+          {% empty %}
+            <li>нет</li>
+          {% endfor %}
+        </ul>
+        <p><a href="/storefront/">Оформить ещё заказ</a></p>
+      </div>
+    </div>
+  </body>
+</html>
+

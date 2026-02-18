@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Order #{{ order.id }}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f7fb; color: #1f2a3c; }
+      .container { max-width: 980px; margin: 0 auto; padding: 20px; }
+      .card { background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+      .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; background: #eef2f8; font-size: 12px; }
+      .danger { color: #b42318; font-size: 13px; }
+      .row { margin-bottom: 8px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 8px; border-bottom: 1px solid #edf1f7; text-align: left; }
+      select, input { width: 100%; padding: 8px; border: 1px solid #d0d7e6; border-radius: 8px; box-sizing: border-box; }
+      button { border: 0; border-radius: 8px; padding: 9px 12px; cursor: pointer; background: #0d6efd; color: #fff; }
+      .muted { color: #57627a; }
+      a { color: #0d6efd; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <p><a href="/dashboard/orders/">← К списку заказов</a></p>
+      <h1>Заказ #{{ order.id }}</h1>
+      <p><a href="/dashboard/orders/{{ order.id }}/invoice/">Скачать счёт (PDF/HTML fallback)</a></p>
+
+      <div class="grid">
+        <div class="card">
+          <div class="row"><strong>Клиент:</strong> {{ order.customer.name|default:"-" }}</div>
+          <div class="row"><strong>Телефон:</strong> {{ order.customer.phone|default:"-" }}</div>
+          <div class="row"><strong>Email:</strong> {{ order.customer.email|default:"-" }}</div>
+          <div class="row"><strong>Канал:</strong> {{ order.channel }}</div>
+          <div class="row"><strong>Адрес:</strong> {{ order.delivery_address|default:"-" }}</div>
+          <div class="row"><strong>Комментарий:</strong> {{ order.comment|default:"-" }}</div>
+        </div>
+        <div class="card">
+          <div class="row"><strong>Статус:</strong> <span id="status-badge">{% include "dashboard/partials/status_badge.html" with order=order only %}</span></div>
+          <div class="row"><strong>Оплата:</strong> {% if order.is_paid %}да ({{ order.paid_at|date:"d.m.Y H:i" }}){% else %}нет{% endif %}</div>
+          <div class="row"><strong>Manual review:</strong> {% if order.needs_manual_review %}да{% else %}нет{% endif %}</div>
+          <div class="row"><strong>Bpium ID:</strong> {{ order.bpium_record_id|default:"-" }}</div>
+          <div class="row"><strong>Создан:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</div>
+          <div class="row"><strong>Обновлён:</strong> {{ order.updated_at|date:"d.m.Y H:i" }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Смена статуса</h3>
+        <form
+          hx-post="/dashboard/orders/{{ order.id }}/status/"
+          hx-target="#status-badge"
+          hx-swap="outerHTML"
+        >
+          {% csrf_token %}
+          <div class="grid">
+            <div>
+              <label>Новый статус</label>
+              <select name="status">
+                {% for next_status in next_statuses %}
+                  <option value="{{ next_status }}">{{ next_status }}</option>
+                {% empty %}
+                  <option value="">Нет доступных переходов</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label>Комментарий</label>
+              <input type="text" name="comment" placeholder="Причина изменения">
+            </div>
+            <div style="display:flex;align-items:end;">
+              <button type="submit">Сменить статус</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Оплата (fallback)</h3>
+        <form method="post" action="/dashboard/orders/{{ order.id }}/payment-link/" style="margin-bottom:10px;">
+          {% csrf_token %}
+          <button type="submit">Создать ссылку оплаты (YooKassa)</button>
+        </form>
+        <form method="post" action="/dashboard/orders/{{ order.id }}/payment-refresh/" style="margin-bottom:10px;">
+          {% csrf_token %}
+          <input type="text" name="payment_id" placeholder="Payment ID (опционально)">
+          <button type="submit">Обновить статус платежа</button>
+        </form>
+        <form method="post" action="/dashboard/orders/{{ order.id }}/mark-paid/">
+          {% csrf_token %}
+          <button type="submit">Отметить как оплачено вручную</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Позиции заказа</h3>
+        <table>
+          <thead>
+            <tr><th>Товар</th><th>Кол-во</th><th>Размер</th><th>Цвет</th></tr>
+          </thead>
+          <tbody>
+            {% for item in order.items.all %}
+              <tr>
+                <td>{{ item.title }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.size|default:"-" }}</td>
+                <td>{{ item.color|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4">Позиции отсутствуют</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>История статусов</h3>
+        <table>
+          <thead>
+            <tr><th>Когда</th><th>Из</th><th>В</th><th>Кем</th><th>Комментарий</th></tr>
+          </thead>
+          <tbody>
+            {% for event in order.history.all %}
+              <tr>
+                <td>{{ event.changed_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ event.old_status|default:"-" }}</td>
+                <td>{{ event.new_status }}</td>
+                <td>{{ event.changed_by }}</td>
+                <td>{{ event.comment|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5">История пуста</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

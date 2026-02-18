@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <title>Invoice #{{ order.id }}</title>
+    <style>
+      body { font-family: Arial, sans-serif; color: #1f2a3c; margin: 24px; }
+      h1 { margin-bottom: 8px; }
+      .meta { margin-bottom: 16px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #e4e7ee; padding: 8px; text-align: left; }
+      .totals { margin-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>Счёт №{{ order.id }}</h1>
+    <div class="meta">
+      <div>Дата: {{ order.created_at|date:"d.m.Y H:i" }}</div>
+      <div>Клиент: {{ order.customer.name|default:"-" }}</div>
+      <div>Телефон: {{ order.customer.phone|default:"-" }}</div>
+      <div>Адрес доставки: {{ order.delivery_address|default:"-" }}</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Товар</th>
+          <th>Кол-во</th>
+          <th>Цена</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in order.items.all %}
+          <tr>
+            <td>{{ item.title }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.price|default:"-" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Позиции отсутствуют</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div>Стоимость доставки: {{ order.delivery_cost|default:"-" }}</div>
+      <div>Итого: {{ order.total_amount|default:"-" }}</div>
+      <div>Статус оплаты: {% if order.is_paid %}оплачен{% else %}не оплачен{% endif %}</div>
+    </div>
+  </body>
+</html>
+

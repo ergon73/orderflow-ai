@@ -1,0 +1,29 @@
+# OrderFlow AI coding rules
+
+## Architecture
+- Use Django monolith with apps: orders, ai_parser, bot, dashboard, integrations.
+- Keep PostgreSQL as primary storage.
+- Treat Bpium as CRM sync target, not as source of truth.
+- Enforce deterministic state transitions via VALID_TRANSITIONS.
+
+## Code style
+- Python 3.11+.
+- Type hints for service-layer functions.
+- Keep functions small and explicit.
+- Prefer clear naming over clever abstractions.
+- Use ruff defaults once configured.
+
+## Data and safety
+- Never log secrets or raw API keys.
+- Never store chain_of_thought in final order fields.
+- Keep chain_of_thought only in ExtractionAttempt.result_json for debugging.
+- Validate idempotency_key for all intake channels.
+
+## Testing
+- Add tests for state machine, parser validation, idempotency, and core services.
+- Use mocks for external services (OpenAI, Bpium, YooKassa, IMAP).
+
+## Dependency policy
+- Add dependencies only when linked to a sprint task.
+- Prefer minimal installs early; postpone heavy optional packages until needed.
+

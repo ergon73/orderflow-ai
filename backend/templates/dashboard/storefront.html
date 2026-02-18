@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OrderFlow Storefront</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f4f7fb; margin: 0; color: #1d2433; }
+      .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+      .card { background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 14px; }
+      .card h3 { margin: 0 0 8px 0; }
+      .card button { border: 0; background: #0d6efd; color: #fff; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+      .form-wrap { margin-top: 20px; background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 16px; }
+      .field { margin-bottom: 12px; }
+      .field label { display: block; font-size: 14px; margin-bottom: 4px; }
+      .field input, .field textarea { width: 100%; padding: 10px; border: 1px solid #d0d7e6; border-radius: 8px; box-sizing: border-box; }
+      .errors { color: #b42318; margin: 8px 0; }
+      .submit { background: #146c43; color: #fff; border: 0; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+      .hint { color: #57627a; font-size: 14px; margin-top: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Демо-магазин OrderFlow</h1>
+      <p>Выберите товар карточкой или опишите заказ в свободной форме.</p>
+
+      <div class="grid">
+        {% for product in products %}
+          <div class="card">
+            <h3>{{ product.title }}</h3>
+            <p>{{ product.price }} RUB</p>
+            <button type="button" onclick="pickProduct('{{ product.title }}')">Выбрать</button>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-wrap">
+        <form method="post">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="errors">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="field">
+            <label for="{{ form.name.id_for_label }}">Имя</label>
+            {{ form.name }}
+          </div>
+          <div class="field">
+            <label for="{{ form.phone.id_for_label }}">Телефон</label>
+            {{ form.phone }}
+          </div>
+          <div class="field">
+            <label for="{{ form.email.id_for_label }}">Email</label>
+            {{ form.email }}
+          </div>
+          <div class="field">
+            <label for="{{ form.selected_product.id_for_label }}">Выбранный товар</label>
+            {{ form.selected_product }}
+          </div>
+          <div class="field">
+            <label for="{{ form.quantity.id_for_label }}">Количество</label>
+            {{ form.quantity }}
+          </div>
+          <div class="field">
+            <label for="{{ form.free_text.id_for_label }}">Свободный текст заказа</label>
+            {{ form.free_text }}
+          </div>
+          <button class="submit" type="submit">Отправить заказ</button>
+          <p class="hint">Пример: "Хочу 2 кружки на Ленина 10, телефон 89161234567".</p>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      function pickProduct(title) {
+        const field = document.getElementById("id_selected_product");
+        if (field) field.value = title;
+      }
+    </script>
+  </body>
+</html>
+

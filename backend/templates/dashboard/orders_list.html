@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard Orders</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f7fb; color: #1f2a3c; }
+      .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+      .panel { background: #fff; border: 1px solid #e4e7ee; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+      .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end; }
+      .filters input, .filters select { width: 100%; padding: 8px; border: 1px solid #d0d7e6; border-radius: 8px; box-sizing: border-box; }
+      .filters button { padding: 9px 12px; border: 0; border-radius: 8px; background: #0d6efd; color: #fff; cursor: pointer; }
+      table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e4e7ee; }
+      th, td { padding: 10px; border-bottom: 1px solid #edf1f7; text-align: left; }
+      tr:hover { background: #fafcff; }
+      .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; font-size: 12px; background: #eef2f8; }
+      a { color: #0d6efd; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Дашборд заказов</h1>
+      <p><a href="/dashboard/stats/">Статистика</a> | <a href="/dashboard/export/csv/">Экспорт CSV</a></p>
+      <div class="panel">
+        <form method="get" class="filters">
+          <div>
+            <label>Статус</label>
+            <select name="status">
+              <option value="">Все</option>
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Канал</label>
+            <select name="channel">
+              <option value="">Все</option>
+              {% for value, label in channel_choices %}
+                <option value="{{ value }}" {% if channel == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Поиск</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="ID / клиент / товар">
+          </div>
+          <div>
+            <button type="submit">Применить</button>
+          </div>
+        </form>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Клиент</th>
+            <th>Канал</th>
+            <th>Статус</th>
+            <th>Оплата</th>
+            <th>Создан</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            <tr>
+              <td>#{{ order.id }}</td>
+              <td>{{ order.customer.name|default:order.customer.phone|default:"-" }}</td>
+              <td>{{ order.channel }}</td>
+              <td><span class="badge">{{ order.get_status_display }}</span></td>
+              <td>{% if order.is_paid %}оплачен{% else %}не оплачен{% endif %}</td>
+              <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+              <td><a href="/dashboard/orders/{{ order.id }}/">Открыть</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">Заказы не найдены.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

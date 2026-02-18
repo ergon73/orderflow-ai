@@ -1,0 +1,97 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orderflow}
+      POSTGRES_USER: ${POSTGRES_USER:-orderflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orderflow}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orderflow} -d ${POSTGRES_DB:-orderflow}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DEBUG: ${DEBUG:-True}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      BPIUM_BASE_URL: ${BPIUM_BASE_URL:-}
+      BPIUM_LOGIN: ${BPIUM_LOGIN:-}
+      BPIUM_PASSWORD: ${BPIUM_PASSWORD:-}
+      BPIUM_CATALOG_ID: ${BPIUM_CATALOG_ID:-}
+      BPIUM_API_PREFIX: ${BPIUM_API_PREFIX:-/api/v1}
+      BPIUM_TIMEOUT: ${BPIUM_TIMEOUT:-15}
+      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET: ${YOOKASSA_SECRET:-}
+      DELIVERY_TARIFFS_JSON: ${DELIVERY_TARIFFS_JSON:-}
+      EMAIL_IMAP_HOST: ${EMAIL_IMAP_HOST:-imap.gmail.com}
+      EMAIL_IMAP_PORT: ${EMAIL_IMAP_PORT:-993}
+      EMAIL_IMAP_MAILBOX: ${EMAIL_IMAP_MAILBOX:-INBOX}
+      EMAIL_LOGIN: ${EMAIL_LOGIN:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me}
+      DEBUG: ${DEBUG:-True}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      BPIUM_BASE_URL: ${BPIUM_BASE_URL:-}
+      BPIUM_LOGIN: ${BPIUM_LOGIN:-}
+      BPIUM_PASSWORD: ${BPIUM_PASSWORD:-}
+      BPIUM_CATALOG_ID: ${BPIUM_CATALOG_ID:-}
+      BPIUM_API_PREFIX: ${BPIUM_API_PREFIX:-/api/v1}
+      BPIUM_TIMEOUT: ${BPIUM_TIMEOUT:-15}
+      YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
+      YOOKASSA_SECRET: ${YOOKASSA_SECRET:-}
+      DELIVERY_TARIFFS_JSON: ${DELIVERY_TARIFFS_JSON:-}
+      EMAIL_IMAP_HOST: ${EMAIL_IMAP_HOST:-imap.gmail.com}
+      EMAIL_IMAP_PORT: ${EMAIL_IMAP_PORT:-993}
+      EMAIL_IMAP_MAILBOX: ${EMAIL_IMAP_MAILBOX:-INBOX}
+      EMAIL_LOGIN: ${EMAIL_LOGIN:-}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "if [ -z \"$${TELEGRAM_BOT_TOKEN}\" ]; then
+               echo 'TELEGRAM_BOT_TOKEN is not set, bot container is idle.';
+               sleep infinity;
+             else
+               python manage.py run_bot;
+             fi"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
