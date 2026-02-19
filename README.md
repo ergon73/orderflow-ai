@@ -27,6 +27,93 @@ OrderFlow AI - омниканальная система обработки за
 - Slot filling работает поверх текущего `OrderExtract`.
 - Все переходы статусов валидируются через `VALID_TRANSITIONS`.
 
+## Структура проекта
+
+```text
+orderflow-ai/
+├── backend/                                  # Django backend
+│   ├── manage.py                             # Точка входа management-команд
+│   ├── requirements.txt                      # Python-зависимости backend
+│   ├── Dockerfile                            # Сборка контейнера web/bot
+│   ├── .dockerignore                         # Исключения для Docker build context
+│   ├── config/                               # Django project config
+│   │   ├── settings.py                       # Настройки приложения + env
+│   │   ├── urls.py                           # Корневые URL, docs, dashboard, API
+│   │   ├── asgi.py                           # ASGI entrypoint
+│   │   └── wsgi.py                           # WSGI entrypoint
+│   ├── orders/                               # Домен заказов
+│   │   ├── models.py                         # Customer, IntakeMessage, Order и др.
+│   │   ├── services.py                       # Бизнес-операции и status transitions
+│   │   ├── state_machine.py                  # VALID_TRANSITIONS
+│   │   ├── serializers.py                    # DRF сериализаторы заказов
+│   │   ├── api_views.py                      # API endpoints заказов
+│   │   ├── urls.py                           # Роутинг API orders
+│   │   ├── admin.py                          # Django Admin конфигурация
+│   │   └── management/commands/check_email.py # Email intake через IMAP
+│   ├── ai_parser/                            # AI-парсинг свободного текста
+│   │   ├── client.py                         # LLM-клиент (OpenAI/Mock)
+│   │   ├── schemas.py                        # Pydantic-схемы извлечения
+│   │   ├── validators.py                     # Пост-валидация и missing_fields
+│   │   ├── prompts.py                        # Промпты primary parse/slot filling
+│   │   └── services.py                       # Pipeline Intake -> Extraction -> Order
+│   ├── bot/                                  # Telegram bot (aiogram)
+│   │   ├── handlers.py                       # /start, сообщения, callback-кнопки
+│   │   ├── keyboards.py                      # Inline клавиатуры
+│   │   ├── notifications.py                  # Уведомления по статусам
+│   │   └── management/commands/run_bot.py    # Запуск polling-бота
+│   ├── dashboard/                            # Manager UI + storefront
+│   │   ├── views.py                          # Dashboard/storefront/payment endpoints
+│   │   ├── forms.py                          # Формы storefront
+│   │   └── urls.py                           # Роутинг dashboard
+│   ├── integrations/                         # Внешние интеграции
+│   │   ├── bpium.py                          # Bpium API client
+│   │   ├── sync.py                           # Sync order -> Bpium (upsert)
+│   │   ├── payment.py                        # YooKassa create/get payment
+│   │   └── delivery.py                       # Расчет доставки по тарифам
+│   ├── templates/dashboard/                  # HTML-шаблоны витрины/дашборда/счета
+│   └── tests/                                # Интеграционные и бизнес-тесты
+├── docs/
+│   └── prompts.md                            # Библиотека промптов проекта
+├── scripts/
+│   └── seed_data.py                          # Генератор демо-данных
+├── docker-compose.yml                        # Оркестрация web/bot/db
+├── .env.example                              # Шаблон переменных окружения
+├── plan-v2.md                                # Актуальный спринт-план и чек-лист
+└── README.md                                 # Документация проекта
+```
+
+## LLM провайдеры
+
+AI-парсер переключается через env-переменную `LLM_PROVIDER`:
+- `openai` - OpenAI API (по умолчанию при наличии `OPENAI_API_KEY`)
+- `vllm` - локальный OpenAI-compatible endpoint (`VLLM_BASE_URL`)
+- `yandexgpt` - YandexGPT API
+- `gigachat` - GigaChat API
+- `mock` - локальный mock-парсер (без внешнего API)
+
+Примеры:
+
+```env
+LLM_PROVIDER=vllm
+VLLM_BASE_URL=http://127.0.0.1:8000/v1
+VLLM_API_KEY=EMPTY
+VLLM_MODEL=Qwen/Qwen2.5-7B-Instruct
+```
+
+```env
+LLM_PROVIDER=yandexgpt
+YANDEXGPT_API_KEY=...
+YANDEXGPT_FOLDER_ID=...
+YANDEXGPT_MODEL_NAME=yandexgpt-lite
+```
+
+```env
+LLM_PROVIDER=gigachat
+GIGACHAT_AUTH_KEY=...
+GIGACHAT_MODEL=GigaChat-2-Max
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+```
+
 ## Запуск локально
 
 1. Создать и активировать `.venv`.
