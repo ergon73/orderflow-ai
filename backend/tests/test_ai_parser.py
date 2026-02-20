@@ -776,3 +776,37 @@ class ParserServiceTests(TestCase):
 
         order.refresh_from_db()
         self.assertFalse(order.needs_manual_review)
+
+    def test_side_effects_are_triggered_via_on_commit_for_confirmed_order(self):
+        intake = IntakeMessage.objects.create(
+            channel=IntakeMessage.Channel.TELEGRAM,
+            raw_text="Хочу 2 кружки на Ленина 10 телефон 89161234567",
+            customer=self.customer,
+            idempotency_key="tg_on_commit_confirmed",
+        )
+
+        with patch("ai_parser.services.apply_confirmed_order_side_effects") as apply_effects_mock:
+            with patch("ai_parser.services.sync_order_after_parsing") as sync_mock:
+                with self.captureOnCommitCallbacks(execute=True):
+                    order, _ = process_intake_message(intake=intake, llm_client=MockLLMClient())
+
+        self.assertEqual(order.status, Order.Status.CONFIRMED)
+        apply_effects_mock.assert_called_once()
+        sync_mock.assert_called_once()
+
+    def test_sync_is_not_scheduled_on_commit_for_needs_info_order(self):
+        intake = IntakeMessage.objects.create(
+            channel=IntakeMessage.Channel.TELEGRAM,
+            raw_text="Хочу кружку на Ленина 10",
+            customer=self.customer,
+            idempotency_key="tg_on_commit_needs_info",
+        )
+
+        with patch("ai_parser.services.apply_confirmed_order_side_effects") as apply_effects_mock:
+            with patch("ai_parser.services.sync_order_after_parsing") as sync_mock:
+                with self.captureOnCommitCallbacks(execute=True):
+                    order, _ = process_intake_message(intake=intake, llm_client=MockLLMClient())
+
+        self.assertEqual(order.status, Order.Status.NEEDS_INFO)
+        apply_effects_mock.assert_not_called()
+        sync_mock.assert_not_called()

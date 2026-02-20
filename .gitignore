@@ -45,6 +45,8 @@ tmp/
 
 # Internal working notes (local only)
 docs/internal/
+claude-refactoring-v2.md
+gemini-refactoring-v2.md
 
 # Local duplicate cert (tracked copy lives in backend/)
 russian_trusted_root_ca.cer

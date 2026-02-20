@@ -137,6 +137,8 @@ GitHub, скриншоты, демо-видео, API docs, демо-магази
 - `NFR-02` Базовая надежность: health endpoint, контейнерные healthchecks, fallback при сбоях внешних сервисов.
 - `NFR-03` Наблюдаемость уровня MVP: application logs + masking secrets + ключевые runtime события.
 - `NFR-04` Документируемость: архитектура, ограничения, privacy-note, roadmap в `README`.
+- `NFR-05` Технический baseline после post-audit hardening:
+web-контур в Docker запускается через `gunicorn`, внешние side effects в AI pipeline выполняются после commit транзакции.
 
 ## 6. Ограничения и допущения
 
@@ -152,6 +154,10 @@ GitHub, скриншоты, демо-видео, API docs, демо-магази
 - `docs/demo_scenarios_abcd.md`
 - `docs/ai_accuracy_50_report.md`
 - `docs/coverage_report.txt`
+
+Актуальный контрольный прогон на дату `2026-02-20`:
+- `99` автотестов (`OK`);
+- `81%` coverage (см. `docs/coverage_report.txt`).
 
 ## 8. Артефакты сдачи
 

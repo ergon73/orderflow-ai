@@ -10,3 +10,4 @@ aiogram>=3.25,<4.0
 drf-spectacular>=0.29,<1.0
 requests>=2.32,<3.0
 coverage>=7.6,<8.0
+gunicorn>=22.0,<23.0

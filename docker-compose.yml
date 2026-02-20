@@ -23,8 +23,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      SECRET_KEY: ${SECRET_KEY:-change-me}
-      DEBUG: ${DEBUG:-True}
+      SECRET_KEY: ${SECRET_KEY:-insecure-dev-key-do-not-use-in-production}
+      DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
       DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
@@ -110,7 +110,7 @@ services:
       - ./backend:/app
     command: >
       sh -c "python manage.py migrate --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 60"
     healthcheck:
       test:
         [
@@ -133,8 +133,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      SECRET_KEY: ${SECRET_KEY:-change-me}
-      DEBUG: ${DEBUG:-True}
+      SECRET_KEY: ${SECRET_KEY:-insecure-dev-key-do-not-use-in-production}
+      DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
       DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}

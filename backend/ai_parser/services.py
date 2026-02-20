@@ -680,6 +680,32 @@ def _record_status_transition(order: Order, old_status: str) -> None:
     )
 
 
+def _load_order_for_post_commit(order_id: int) -> Order | None:
+    try:
+        return (
+            Order.objects.select_related("customer")
+            .prefetch_related("items")
+            .get(id=order_id)
+        )
+    except Order.DoesNotExist:
+        logger.warning("post_commit_order_not_found order_id=%s", order_id)
+        return None
+
+
+def _run_confirmed_side_effects_after_commit(order_id: int) -> None:
+    order = _load_order_for_post_commit(order_id)
+    if order is None:
+        return
+    apply_confirmed_order_side_effects(order)
+
+
+def _run_sync_after_commit(order_id: int) -> None:
+    order = _load_order_for_post_commit(order_id)
+    if order is None:
+        return
+    sync_order_after_parsing(order)
+
+
 def _maybe_mark_manual_review(order: Order) -> None:
     attempts_count = order.extraction_attempts.exclude(
         model_name__startswith="shadow:"
@@ -721,7 +747,9 @@ def process_intake_message(
     _clear_manual_review_on_confirmed(order, new_status)
 
     if new_status == Order.Status.CONFIRMED:
-        apply_confirmed_order_side_effects(order)
+        transaction.on_commit(
+            lambda order_id=order.id: _run_confirmed_side_effects_after_commit(order_id)
+        )
 
     _update_customer_from_extract(intake.customer, extract)
 
@@ -744,6 +772,8 @@ def process_intake_message(
     if order.status == Order.Status.NEEDS_INFO:
         _maybe_mark_manual_review(order)
     else:
-        sync_order_after_parsing(order)
+        transaction.on_commit(
+            lambda order_id=order.id: _run_sync_after_commit(order_id)
+        )
 
     return order, attempt

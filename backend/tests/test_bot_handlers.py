@@ -7,6 +7,7 @@ from asgiref.sync import async_to_sync
 from django.test import TestCase
 
 from bot.handlers import (
+    ACTIVE_ORDER_CONTEXT,
     cancel_order_handler,
     confirm_order_handler,
     edit_order_handler,
@@ -49,6 +50,7 @@ class _DummyCallback:
 
 class BotCallbackSecurityTests(TestCase):
     def setUp(self):
+        ACTIVE_ORDER_CONTEXT.clear()
         customer = Customer.objects.create(
             name="Telegram Owner",
             phone="+79161234567",
@@ -102,6 +104,16 @@ class BotCallbackSecurityTests(TestCase):
         self.assertEqual(callback.answer_calls, [("Это не ваш заказ", True)])
         request_edit.assert_not_called()
 
+    def test_cancel_callback_rejects_foreign_order(self):
+        callback = _DummyCallback(f"order:cancel:{self.order.id}", user_id=222)
+
+        with patch("bot.handlers._load_order", new=AsyncMock(return_value=self.order)):
+            with patch("bot.handlers.change_order_status") as change_status:
+                async_to_sync(cancel_order_handler)(callback)
+
+        self.assertEqual(callback.answer_calls, [("Это не ваш заказ", True)])
+        change_status.assert_not_called()
+
     def test_confirm_callback_owner_happy_path(self):
         callback = _DummyCallback(f"order:confirm:{self.order.id}", user_id=111)
 
@@ -142,3 +154,46 @@ class BotCallbackSecurityTests(TestCase):
         self.assertIn("Уточните данные", answer_text)
         self.assertIn("Укажите телефон", answer_text)
         self.assertIn("reply_markup", kwargs)
+
+    def test_order_message_handler_duplicate_intake_is_ignored(self):
+        message = _DummyIncomingMessage(user_id=111, text="Хочу кружку")
+
+        with patch("bot.handlers.get_or_create_telegram_customer", return_value=self.order.customer):
+            with patch("bot.handlers.create_telegram_intake", return_value=(self.order.intake, False)):
+                with patch("bot.handlers.process_intake_message") as process_mock:
+                    async_to_sync(order_message_handler)(message)
+
+        self.assertEqual(len(message.answer_calls), 1)
+        self.assertIn("дубль", message.answer_calls[0][0].lower())
+        process_mock.assert_not_called()
+
+    def test_order_message_handler_returns_user_friendly_error_on_exception(self):
+        message = _DummyIncomingMessage(user_id=111, text="Хочу кружку")
+
+        with patch("bot.handlers.get_or_create_telegram_customer", return_value=self.order.customer):
+            with patch("bot.handlers.create_telegram_intake", return_value=(self.order.intake, True)):
+                with patch("bot.handlers._load_context_order", new=AsyncMock(return_value=None)):
+                    with patch("bot.handlers.get_active_needs_info_order", return_value=None):
+                        with patch("bot.handlers.process_intake_message", side_effect=RuntimeError("llm failed")):
+                            async_to_sync(order_message_handler)(message)
+
+        self.assertEqual(len(message.answer_calls), 1)
+        self.assertIn("временной ошибки", message.answer_calls[0][0])
+
+    def test_order_message_handler_manual_review_notice(self):
+        message = _DummyIncomingMessage(user_id=111, text="Хочу кружку")
+        self.order.needs_manual_review = True
+        attempt = SimpleNamespace(
+            missing_fields=["customer.phone"],
+            result_json={"clarifying_questions": []},
+        )
+
+        with patch("bot.handlers.get_or_create_telegram_customer", return_value=self.order.customer):
+            with patch("bot.handlers.create_telegram_intake", return_value=(self.order.intake, True)):
+                with patch("bot.handlers._load_context_order", new=AsyncMock(return_value=None)):
+                    with patch("bot.handlers.get_active_needs_info_order", return_value=None):
+                        with patch("bot.handlers.process_intake_message", return_value=(self.order, attempt)):
+                            async_to_sync(order_message_handler)(message)
+
+        self.assertEqual(len(message.answer_calls), 1)
+        self.assertIn("передан на ручную обработку", message.answer_calls[0][0])

@@ -5,11 +5,11 @@ OrderFlow AI - омниканальная система обработки за
 
 ## Текущий статус
 
-- Спринты 0-9 реализованы на уровне кода, Sprint 10 в финализации артефактов защиты.
+- Спринты 0-10 реализованы на уровне кода, post-audit hardening (`Sprint 10B`) выполнен.
 - Live-проверки интеграций выполнены: IMAP, Telegram bot, Bpium, YooKassa sandbox.
-- Локальные тесты: `90` passing.
+- Локальные тесты: `99` passing.
 - Подтверждена accuracy на 50 кейсах: `100%` (GigaChat Pro), см. `docs/ai_accuracy_50_report.md`.
-- Покрытие тестами: `77%` (coverage report), см. `docs/coverage_report.txt`.
+- Покрытие тестами: `81%` (coverage report), см. `docs/coverage_report.txt`.
 
 ## Навигация по документации
 
@@ -247,7 +247,7 @@ LLM_HTTP_RETRY_STATUS_CODES=408,409,425,429,500,502,503,504
 
 Сервисы:
 - `nginx` (reverse proxy, внешний вход на `:8001`)
-- `web` (Django, внутренний сервис)
+- `web` (Django + gunicorn, внутренний сервис)
 - `bot` (aiogram polling)
 - `db` (PostgreSQL)
 

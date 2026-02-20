@@ -351,7 +351,7 @@
 - [x] `S10-02` Прогнать 50 кейсов и замерить accuracy AI-парсинга (`docs/ai_accuracy_50_report.md`).
 - [x] `S10-03` Довести accuracy до `>=85%` (факт: `100%` strict/adjusted на `GigaChat-2-Pro`).
 - [x] `S10-04` Добавить тесты: state machine, idempotency, slot filling, manual review, интеграции (моки).
-- [x] `S10-05` Довести покрытие ключевой бизнес-логики до `>=50%` (факт: `77%`, `docs/coverage_report.txt`).
+- [x] `S10-05` Довести покрытие ключевой бизнес-логики до `>=50%` (факт: `81%`, `docs/coverage_report.txt`).
 - [x] `S10-06` Финализировать `docker-compose.yml`: `web + db + bot + nginx`, healthchecks.
 - [x] `S10-07` Подготовить `scripts/seed_data.py` (>=20 заказов).
 - [x] `S10-08` Оформить `README.md`: запуск, архитектура, ограничения, privacy-note, roadmap.
@@ -369,6 +369,31 @@
 - [x] `S10-C4` Внутренний DoD закрыт.
 
 Критерий завершения: `GATE-3` закрыт.
+
+---
+
+## Спринт 10B. Post-Audit Hardening и финальная верификация (День 15)
+
+Цель: закрыть замечания повторного аудита (v2), усилить production-baseline и синхронизировать артефакты качества.
+
+### TODO
+- [x] `S10B-01` Перевести контейнер `web` с `runserver` на `gunicorn` (`backend/Dockerfile`, `docker-compose.yml`, зависимости).
+- [x] `S10B-02` Вынести внешние HTTP side effects из `@transaction.atomic` в `transaction.on_commit()` в AI pipeline.
+- [x] `S10B-03` Добавить недостающие тесты по bot/dashboard:
+`foreign cancel callback`, duplicate/error paths в message handler, payment-link/payment-refresh с mock YooKassa.
+- [x] `S10B-04` Выполнить полный прогон тестов + coverage, зафиксировать фактические метрики (`99` тестов, `81%` coverage).
+- [x] `S10B-05` Актуализировать документацию по итогам прогона:
+`README.md`, `docs/coverage_report.txt`, при необходимости дополнительные notes по runtime-профилю.
+- [x] `S10B-06` Зафиксировать результаты в `plan-v2.md`, подготовить и выполнить push итоговых изменений.
+
+### Проверки
+- [x] `S10B-C1` `python manage.py test` проходит без регрессий.
+- [x] `S10B-C2` Coverage не ниже предыдущего значения и отражён в `docs/coverage_report.txt`.
+- [x] `S10B-C3` Docker web runtime запускается через `gunicorn`, не `runserver`.
+- [x] `S10B-C4` Side effects после парсинга выполняются через `on_commit`, транзакции не держат внешние HTTP.
+- [x] `S10B-C5` GitHub содержит актуальные код и документы, рабочее дерево чистое.
+
+Критерий завершения: закрыт пакет hardening-задач после v2-аудита без функциональных регрессий.
 
 ---
 

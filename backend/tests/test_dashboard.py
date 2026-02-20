@@ -181,3 +181,50 @@ class DashboardTests(TestCase):
             data={"status": Order.Status.CONFIRMED},
         )
         self.assertEqual(response.status_code, 404)
+
+    def test_create_payment_link_persists_payment_id_in_comment(self):
+        with patch(
+            "dashboard.views.create_payment",
+            return_value={
+                "payment_id": "pay_123",
+                "confirmation_url": "https://pay.example/confirm",
+            },
+        ) as create_payment_mock:
+            response = self.client.post(
+                f"/dashboard/orders/{self.order.id}/payment-link/",
+                follow=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertIn("[payment_id:pay_123]", self.order.comment)
+        create_payment_mock.assert_called_once()
+
+    def test_refresh_payment_status_marks_order_paid(self):
+        with patch(
+            "dashboard.views.get_payment",
+            return_value={"status": "succeeded", "id": "pay_123"},
+        ) as get_payment_mock:
+            with patch("dashboard.views.sync_order_to_bpium_safe", return_value=True) as sync_mock:
+                response = self.client.post(
+                    f"/dashboard/orders/{self.order.id}/payment-refresh/",
+                    data={"payment_id": "pay_123"},
+                    follow=True,
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertTrue(self.order.is_paid)
+        self.assertIsNotNone(self.order.paid_at)
+        get_payment_mock.assert_called_once_with("pay_123")
+        sync_mock.assert_called_once()
+
+    def test_refresh_payment_status_requires_payment_id(self):
+        response = self.client.post(
+            f"/dashboard/orders/{self.order.id}/payment-refresh/",
+            data={"payment_id": ""},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.order.refresh_from_db()
+        self.assertFalse(self.order.is_paid)
