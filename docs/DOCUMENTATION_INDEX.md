@@ -38,15 +38,6 @@ This file maps project documentation by purpose.
 - `docs/production_readiness_roadmap.md` - production acceptance track.
 - `docs/ux_cx_roadmap.md` - UX/UI & CX track.
 
-## 5) Internal Working Notes (Kept for Traceability)
+## 5) Internal Working Notes
 
-- `docs/internal/plan-rf.md`
-- `docs/internal/README.md`
-- `docs/internal/claude-refactoring.md`
-- `docs/internal/gemini-refactoring.md`
-- `docs/internal/claude-to-gemini-rf-notes.md`
-- `docs/internal/gemini-to-claude-rf-notes.md`
-- `docs/internal/FINAL_ТЗ_основной_ecommerce.md`
-- `docs/internal/FINAL_экспертный_анализ_и_рекомендации.md`
-
-These files are historical analysis artifacts and not primary onboarding docs.
+Internal working notes are stored locally and are intentionally excluded from the public repository.

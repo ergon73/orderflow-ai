@@ -27,6 +27,7 @@ staticfiles/
 .env
 .env.*
 !.env.example
+!.env.demo.ru.example
 
 # IDE/editor
 .idea/
@@ -42,3 +43,5 @@ Thumbs.db
 *.log
 tmp/
 
+# Internal working notes (local only)
+docs/internal/
