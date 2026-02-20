@@ -21,7 +21,8 @@ def normalize_phone(raw: str | None, default_region: str = "RU") -> str | None:
 
 def apply_post_validation(extract: OrderExtract) -> OrderExtract:
     validated = OrderExtract.model_validate(deepcopy(extract.model_dump()))
-    missing = set(validated.missing_fields)
+    # Recompute from canonical slots only. Ignore noisy model-specific labels.
+    missing: set[str] = set()
 
     if not validated.items:
         missing.add("items")
@@ -52,4 +53,3 @@ def apply_post_validation(extract: OrderExtract) -> OrderExtract:
             "Пожалуйста, уточните недостающие данные для оформления заказа."
         ]
     return validated
-

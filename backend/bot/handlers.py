@@ -7,6 +7,7 @@ from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist
 
 from ai_parser.services import process_intake_message
+from integrations.apiship import apiship_auto_create_on_confirmed, create_shipment_for_order_safe
 from integrations.sync import sync_order_to_bpium_safe
 from orders.models import Order
 from orders.services import (
@@ -68,6 +69,19 @@ async def _load_context_order(telegram_user_id: int, customer_id: int) -> Order 
         return None
 
 
+def _parse_order_id(callback_data: str | None) -> int | None:
+    if not callback_data:
+        return None
+    try:
+        return int(callback_data.split(":")[-1])
+    except (ValueError, IndexError):
+        return None
+
+
+def _is_order_owner(order: Order, telegram_user_id: int) -> bool:
+    return order.customer.telegram_id == telegram_user_id
+
+
 @router.message(CommandStart())
 async def start_handler(message: Message) -> None:
     await message.answer(
@@ -101,10 +115,23 @@ async def order_message_handler(message: Message) -> None:
     if pending_order is None:
         pending_order = await sync_to_async(get_active_needs_info_order)(customer)
 
-    order, attempt = await sync_to_async(process_intake_message)(
-        intake=intake,
-        order=pending_order,
-    )
+    try:
+        order, attempt = await sync_to_async(process_intake_message)(
+            intake=intake,
+            order=pending_order,
+        )
+    except Exception as exc:
+        logger.exception(
+            "intake_processing_failed chat_id=%s message_id=%s error=%s",
+            message.chat.id,
+            message.message_id,
+            exc,
+        )
+        await message.answer(
+            "Не удалось обработать заказ из-за временной ошибки. "
+            "Попробуйте еще раз через 10-20 секунд."
+        )
+        return
 
     if order.needs_manual_review:
         ACTIVE_ORDER_CONTEXT.pop(message.from_user.id, None)
@@ -135,11 +162,19 @@ async def confirm_order_handler(callback: CallbackQuery) -> None:
         await callback.answer()
         return
 
-    order_id = int(callback.data.split(":")[-1])
+    order_id = _parse_order_id(callback.data)
+    if order_id is None:
+        await callback.answer("Некорректные данные", show_alert=True)
+        return
+
     try:
         order = await _load_order(order_id)
     except ObjectDoesNotExist:
         await callback.answer("Заказ не найден", show_alert=True)
+        return
+
+    if not _is_order_owner(order, callback.from_user.id):
+        await callback.answer("Это не ваш заказ", show_alert=True)
         return
 
     try:
@@ -154,6 +189,8 @@ async def confirm_order_handler(callback: CallbackQuery) -> None:
             sync_ok = await sync_to_async(sync_order_to_bpium_safe)(order)
             if not sync_ok:
                 logger.warning("bpium_sync_failed_from_bot order_id=%s action=confirm", order.id)
+            if order.status == Order.Status.CONFIRMED and apiship_auto_create_on_confirmed():
+                await sync_to_async(create_shipment_for_order_safe)(order)
         ACTIVE_ORDER_CONTEXT.pop(callback.from_user.id, None)
         await callback.message.answer(f"Заказ #{order_id} подтверждён.")
     except ValueError as exc:
@@ -167,11 +204,19 @@ async def edit_order_handler(callback: CallbackQuery) -> None:
         await callback.answer()
         return
 
-    order_id = int(callback.data.split(":")[-1])
+    order_id = _parse_order_id(callback.data)
+    if order_id is None:
+        await callback.answer("Некорректные данные", show_alert=True)
+        return
+
     try:
         order = await _load_order(order_id)
     except ObjectDoesNotExist:
         await callback.answer("Заказ не найден", show_alert=True)
+        return
+
+    if not _is_order_owner(order, callback.from_user.id):
+        await callback.answer("Это не ваш заказ", show_alert=True)
         return
 
     await sync_to_async(request_order_edit)(
@@ -192,11 +237,19 @@ async def cancel_order_handler(callback: CallbackQuery) -> None:
         await callback.answer()
         return
 
-    order_id = int(callback.data.split(":")[-1])
+    order_id = _parse_order_id(callback.data)
+    if order_id is None:
+        await callback.answer("Некорректные данные", show_alert=True)
+        return
+
     try:
         order = await _load_order(order_id)
     except ObjectDoesNotExist:
         await callback.answer("Заказ не найден", show_alert=True)
+        return
+
+    if not _is_order_owner(order, callback.from_user.id):
+        await callback.answer("Это не ваш заказ", show_alert=True)
         return
 
     try:

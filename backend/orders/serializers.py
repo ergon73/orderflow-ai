@@ -29,6 +29,11 @@ class OrderSerializer(serializers.ModelSerializer):
             "is_paid",
             "paid_at",
             "track_number",
+            "shipping_provider",
+            "shipping_external_id",
+            "tracking_url",
+            "shipping_status_raw",
+            "shipping_synced_at",
             "needs_manual_review",
             "bpium_record_id",
             "created_at",
@@ -40,4 +45,3 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.Status.choices)
     comment = serializers.CharField(required=False, allow_blank=True)
-

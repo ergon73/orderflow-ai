@@ -5,6 +5,7 @@ import os
 
 import requests
 
+from config.logging_utils import sanitize_exception_for_log
 from orders.models import Order
 
 logger = logging.getLogger(__name__)
@@ -31,10 +32,13 @@ def send_order_status_notification(order: Order) -> bool:
         response.raise_for_status()
         return True
     except Exception as exc:
+        status_code = None
+        if isinstance(exc, requests.RequestException) and exc.response is not None:
+            status_code = exc.response.status_code
         logger.warning(
-            "failed_to_send_telegram_status_notification order_id=%s error=%s",
+            "failed_to_send_telegram_status_notification order_id=%s status_code=%s error=%s",
             order.id,
-            exc,
+            status_code,
+            sanitize_exception_for_log(exc),
         )
         return False
-

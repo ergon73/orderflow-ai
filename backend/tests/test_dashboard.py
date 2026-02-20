@@ -1,11 +1,20 @@
-from django.test import Client, TestCase
+from django.core.cache import cache
+from django.test import Client, TestCase, override_settings
+from django.contrib.auth import get_user_model
+from unittest.mock import patch
 
 from orders.models import Customer, IntakeMessage, Order, OrderItem
 
 
 class DashboardTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = Client()
+        self.user = get_user_model().objects.create_user(
+            username="manager",
+            password="pass1234",
+        )
+        self.client.force_login(self.user)
         self.customer = Customer.objects.create(name="Manager Test", phone="+79161234567")
         intake = IntakeMessage.objects.create(
             channel=IntakeMessage.Channel.WEB,
@@ -21,6 +30,74 @@ class DashboardTests(TestCase):
             delivery_address="Ленина 10",
         )
         OrderItem.objects.create(order=self.order, title="кружка", quantity=1)
+
+    def test_dashboard_pages_require_login(self):
+        anon = Client()
+        response = anon.get("/dashboard/orders/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login/", response["Location"])
+
+    def test_storefront_post_creates_order_success_response(self):
+        anon = Client()
+
+        def _fake_process(*, intake, **kwargs):
+            order = Order.objects.create(
+                customer=intake.customer,
+                intake=intake,
+                channel=intake.channel,
+                status=Order.Status.CONFIRMED,
+                delivery_address="Тверская 1",
+            )
+            attempt = type("Attempt", (), {"missing_fields": [], "result_json": {}})
+            return order, attempt
+
+        with patch("dashboard.views.process_intake_message", side_effect=_fake_process):
+            response = anon.post(
+                "/storefront/",
+                data={
+                    "name": "Storefront User",
+                    "phone": "+79160000000",
+                    "email": "storefront@example.com",
+                    "selected_product": "Кружка",
+                    "quantity": 2,
+                    "free_text": "",
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Заказ принят")
+
+    @override_settings(STOREFRONT_RATE_LIMIT_REQUESTS=1, STOREFRONT_RATE_LIMIT_WINDOW_SECONDS=60)
+    def test_storefront_post_is_rate_limited(self):
+        anon = Client()
+
+        def _fake_process(*, intake, **kwargs):
+            order = Order.objects.create(
+                customer=intake.customer,
+                intake=intake,
+                channel=intake.channel,
+                status=Order.Status.CONFIRMED,
+                delivery_address="Тверская 1",
+            )
+            attempt = type("Attempt", (), {"missing_fields": [], "result_json": {}})
+            return order, attempt
+
+        payload = {
+            "name": "Rate Limited User",
+            "phone": "+79160000001",
+            "email": "ratelimit@example.com",
+            "selected_product": "Кружка",
+            "quantity": 1,
+            "free_text": "",
+        }
+
+        with patch("dashboard.views.process_intake_message", side_effect=_fake_process):
+            first = anon.post("/storefront/", data=payload, REMOTE_ADDR="203.0.113.10")
+            second = anon.post("/storefront/", data=payload, REMOTE_ADDR="203.0.113.10")
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 429)
+        self.assertIn("Retry-After", second.headers)
 
     def test_order_list_page_is_available(self):
         response = self.client.get("/dashboard/orders/")
@@ -62,7 +139,45 @@ class DashboardTests(TestCase):
         self.assertIn("attachment; filename=orders_export.csv", response["Content-Disposition"])
         self.assertIn("order_id", response.content.decode("utf-8"))
 
+    def test_csv_export_contains_expected_columns(self):
+        response = self.client.get("/dashboard/export/csv/")
+        self.assertEqual(response.status_code, 200)
+        first_line = response.content.decode("utf-8").splitlines()[0]
+        header_columns = first_line.split(",")
+        expected = [
+            "order_id",
+            "created_at",
+            "channel",
+            "status",
+            "customer_name",
+            "phone",
+            "delivery_address",
+            "is_paid",
+            "paid_at",
+            "delivery_cost",
+            "total_amount",
+            "track_number",
+            "shipping_provider",
+            "shipping_external_id",
+            "tracking_url",
+            "shipping_status_raw",
+            "shipping_synced_at",
+            "bpium_record_id",
+        ]
+        self.assertEqual(header_columns, expected)
+
     def test_invoice_view_returns_file_or_html_fallback(self):
         response = self.client.get(f"/dashboard/orders/{self.order.id}/invoice/")
         self.assertEqual(response.status_code, 200)
         self.assertIn(response["Content-Type"], ["application/pdf", "text/html; charset=utf-8"])
+
+    def test_dashboard_order_detail_returns_404_for_unknown_order(self):
+        response = self.client.get("/dashboard/orders/999999/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_dashboard_status_update_returns_404_for_unknown_order(self):
+        response = self.client.post(
+            "/dashboard/orders/999999/status/",
+            data={"status": Order.Status.CONFIRMED},
+        )
+        self.assertEqual(response.status_code, 404)

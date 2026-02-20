@@ -6,6 +6,8 @@ from decimal import Decimal
 
 from orders.models import Order
 
+from .apiship import calculate_delivery_cost_apiship
+
 DEFAULT_TARIFFS = {
     "москва": "350.00",
     "санкт-петербург": "450.00",
@@ -27,7 +29,12 @@ def load_tariffs() -> dict[str, str]:
     return DEFAULT_TARIFFS
 
 
-def calculate_delivery_cost(city: str | None) -> Decimal:
+def calculate_delivery_cost(city: str | None, *, order: Order | None = None) -> Decimal:
+    if order is not None:
+        apiship_cost = calculate_delivery_cost_apiship(order)
+        if apiship_cost is not None:
+            return apiship_cost
+
     tariffs = load_tariffs()
     key = (city or "").strip().lower()
     raw_cost = tariffs.get(key, tariffs["default"])
@@ -35,9 +42,8 @@ def calculate_delivery_cost(city: str | None) -> Decimal:
 
 
 def apply_delivery_cost(order: Order) -> Order:
-    cost = calculate_delivery_cost(order.delivery_city)
+    cost = calculate_delivery_cost(order.delivery_city, order=order)
     if order.delivery_cost != cost:
         order.delivery_cost = cost
         order.save(update_fields=["delivery_cost", "updated_at"])
     return order
-

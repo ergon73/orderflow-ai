@@ -32,17 +32,28 @@ class OrderAdmin(admin.ModelAdmin):
         "colored_status",
         "channel",
         "customer",
+        "shipping_provider",
+        "track_number",
         "is_paid",
         "needs_manual_review",
         "created_at",
     )
-    list_filter = ("status", "channel", "is_paid", "needs_manual_review", "created_at")
+    list_filter = (
+        "status",
+        "channel",
+        "shipping_provider",
+        "is_paid",
+        "needs_manual_review",
+        "created_at",
+    )
     search_fields = (
         "id",
         "customer__name",
         "customer__phone",
         "delivery_address",
         "bpium_record_id",
+        "track_number",
+        "shipping_external_id",
     )
     readonly_fields = ("created_at", "updated_at")
 

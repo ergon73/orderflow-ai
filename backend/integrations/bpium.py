@@ -50,9 +50,16 @@ class BpiumClient:
         }
         if not self.field_map:
             return filtered
-        return {
-            self.field_map.get(key, key): value for key, value in filtered.items()
-        }
+
+        # When explicit field mapping is configured, do not send unmapped keys.
+        # This prevents Bpium validation errors ("field not found") on schema drift.
+        mapped_payload: dict = {}
+        for key, value in filtered.items():
+            mapped_key = self.field_map.get(key)
+            if mapped_key in (None, ""):
+                continue
+            mapped_payload[str(mapped_key)] = value
+        return mapped_payload
 
     def _request(self, method: str, path: str, **kwargs) -> dict:
         response = self.session.request(

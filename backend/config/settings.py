@@ -2,18 +2,14 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+
+from .env_utils import env_bool, env_int
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / ".env")
-
-
-def env_bool(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def parse_database_url(database_url: str) -> dict:
@@ -36,15 +32,27 @@ def parse_database_url(database_url: str) -> dict:
 
     raise ValueError(f"Unsupported DATABASE_URL scheme: {scheme}")
 
-
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
-DEBUG = env_bool("DEBUG", True)
+DEBUG = env_bool("DEBUG", False)
+SECRET_KEY = (os.getenv("SECRET_KEY") or "").strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "insecure-dev-key-do-not-use-in-production"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is disabled.")
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
         "ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,testserver"
     ).split(",")
     if host.strip()
+]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost,http://127.0.0.1,http://localhost:8001,http://127.0.0.1:8001",
+    ).split(",")
+    if origin.strip()
 ]
 
 
@@ -127,13 +135,47 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+LOGIN_URL = "/admin/login/"
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_THROTTLE_RATES": {
+        "api_user": os.getenv("API_USER_THROTTLE_RATE", "120/min"),
+        "api_order_write": os.getenv("API_ORDER_WRITE_THROTTLE_RATE", "30/min"),
+    },
 }
+
+STOREFRONT_RATE_LIMIT_REQUESTS = env_int("STOREFRONT_RATE_LIMIT_REQUESTS", 20)
+STOREFRONT_RATE_LIMIT_WINDOW_SECONDS = env_int("STOREFRONT_RATE_LIMIT_WINDOW_SECONDS", 60)
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "OrderFlow AI API",
     "DESCRIPTION": "API for omnichannel order intake and management.",
     "VERSION": "0.1.0",
+}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "mask_secrets": {
+            "()": "config.logging_utils.SecretMaskingFilter",
+        }
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+            "filters": ["mask_secrets"],
+        }
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
 }

@@ -39,6 +39,12 @@
         <div class="card">
           <div class="row"><strong>Статус:</strong> <span id="status-badge">{% include "dashboard/partials/status_badge.html" with order=order only %}</span></div>
           <div class="row"><strong>Оплата:</strong> {% if order.is_paid %}да ({{ order.paid_at|date:"d.m.Y H:i" }}){% else %}нет{% endif %}</div>
+          <div class="row"><strong>Доставка (провайдер):</strong> {{ order.shipping_provider|default:"-" }}</div>
+          <div class="row"><strong>Внешний ID доставки:</strong> {{ order.shipping_external_id|default:"-" }}</div>
+          <div class="row"><strong>Трек-номер:</strong> {{ order.track_number|default:"-" }}</div>
+          <div class="row"><strong>Ссылка трекинга:</strong> {% if order.tracking_url %}<a href="{{ order.tracking_url }}" target="_blank" rel="noopener">Открыть</a>{% else %}-{% endif %}</div>
+          <div class="row"><strong>Сырой статус доставки:</strong> {{ order.shipping_status_raw|default:"-" }}</div>
+          <div class="row"><strong>Синхронизация доставки:</strong> {% if order.shipping_synced_at %}{{ order.shipping_synced_at|date:"d.m.Y H:i" }}{% else %}-{% endif %}</div>
           <div class="row"><strong>Manual review:</strong> {% if order.needs_manual_review %}да{% else %}нет{% endif %}</div>
           <div class="row"><strong>Bpium ID:</strong> {{ order.bpium_record_id|default:"-" }}</div>
           <div class="row"><strong>Создан:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</div>

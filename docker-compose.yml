@@ -29,8 +29,14 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_HTTP_MAX_RETRIES: ${LLM_HTTP_MAX_RETRIES:-2}
+      LLM_HTTP_RETRY_BACKOFF_BASE: ${LLM_HTTP_RETRY_BACKOFF_BASE:-0.5}
+      LLM_HTTP_RETRY_BACKOFF_MAX: ${LLM_HTTP_RETRY_BACKOFF_MAX:-4.0}
+      LLM_HTTP_RETRY_STATUS_CODES: ${LLM_HTTP_RETRY_STATUS_CODES:-408,409,425,429,500,502,503,504}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-30}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-http://127.0.0.1:8000/v1}
       VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
       VLLM_MODEL: ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
@@ -40,13 +46,16 @@ services:
       YANDEXGPT_MODEL_URI: ${YANDEXGPT_MODEL_URI:-}
       YANDEXGPT_API_URL: ${YANDEXGPT_API_URL:-https://llm.api.cloud.yandex.net/foundationModels/v1/completion}
       YANDEXGPT_TIMEOUT: ${YANDEXGPT_TIMEOUT:-30}
+      YANDEXGPT_MAX_RETRIES: ${YANDEXGPT_MAX_RETRIES:-}
       GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:-}
       GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Max}
       GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
       GIGACHAT_AUTH_URL: ${GIGACHAT_AUTH_URL:-https://ngw.devices.sberbank.ru:9443/api/v2/oauth}
       GIGACHAT_API_URL: ${GIGACHAT_API_URL:-https://gigachat.devices.sberbank.ru/api/v1/chat/completions}
+      GIGACHAT_CERT_PATH: ${GIGACHAT_CERT_PATH:-}
       GIGACHAT_VERIFY_SSL: ${GIGACHAT_VERIFY_SSL:-true}
       GIGACHAT_TIMEOUT: ${GIGACHAT_TIMEOUT:-30}
+      GIGACHAT_MAX_RETRIES: ${GIGACHAT_MAX_RETRIES:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       BPIUM_BASE_URL: ${BPIUM_BASE_URL:-}
       BPIUM_LOGIN: ${BPIUM_LOGIN:-}
@@ -54,6 +63,41 @@ services:
       BPIUM_CATALOG_ID: ${BPIUM_CATALOG_ID:-}
       BPIUM_API_PREFIX: ${BPIUM_API_PREFIX:-/api/v1}
       BPIUM_TIMEOUT: ${BPIUM_TIMEOUT:-15}
+      BPIUM_FIELD_MAP: ${BPIUM_FIELD_MAP:-{}}
+      APISHIP_ENABLED: ${APISHIP_ENABLED:-false}
+      APISHIP_BASE_URL: ${APISHIP_BASE_URL:-http://api.dev.apiship.ru/v1}
+      APISHIP_TOKEN: ${APISHIP_TOKEN:-}
+      APISHIP_LOGIN: ${APISHIP_LOGIN:-}
+      APISHIP_PASSWORD: ${APISHIP_PASSWORD:-}
+      APISHIP_AUTH_PATH: ${APISHIP_AUTH_PATH:-/users/login}
+      APISHIP_AUTH_HEADER: ${APISHIP_AUTH_HEADER:-Authorization}
+      APISHIP_AUTH_PREFIX: ${APISHIP_AUTH_PREFIX:-}
+      APISHIP_CALCULATOR_PATH: ${APISHIP_CALCULATOR_PATH:-/calculator}
+      APISHIP_ORDERS_PATH: ${APISHIP_ORDERS_PATH:-/orders/sync}
+      APISHIP_ORDER_STATUS_PATH: ${APISHIP_ORDER_STATUS_PATH:-/orders/status}
+      APISHIP_PROVIDER_KEY: ${APISHIP_PROVIDER_KEY:-}
+      APISHIP_TARIFF_ID: ${APISHIP_TARIFF_ID:-}
+      APISHIP_CLIENT_NUMBER_PREFIX: ${APISHIP_CLIENT_NUMBER_PREFIX:-orderflow}
+      APISHIP_FROM_COUNTRY_CODE: ${APISHIP_FROM_COUNTRY_CODE:-RU}
+      APISHIP_SENDER_NAME: ${APISHIP_SENDER_NAME:-OrderFlow Store}
+      APISHIP_SENDER_PHONE: ${APISHIP_SENDER_PHONE:-+79990000000}
+      APISHIP_SENDER_EMAIL: ${APISHIP_SENDER_EMAIL:-}
+      APISHIP_RECIPIENT_COUNTRY_CODE: ${APISHIP_RECIPIENT_COUNTRY_CODE:-RU}
+      APISHIP_FROM_CITY: ${APISHIP_FROM_CITY:-}
+      APISHIP_FROM_ADDRESS: ${APISHIP_FROM_ADDRESS:-}
+      APISHIP_PICKUP_TYPE: ${APISHIP_PICKUP_TYPE:-courier}
+      APISHIP_DELIVERY_TYPE: ${APISHIP_DELIVERY_TYPE:-courier}
+      APISHIP_DEFAULT_WEIGHT_KG: ${APISHIP_DEFAULT_WEIGHT_KG:-1.0}
+      APISHIP_PLACE_LENGTH_CM: ${APISHIP_PLACE_LENGTH_CM:-10}
+      APISHIP_PLACE_WIDTH_CM: ${APISHIP_PLACE_WIDTH_CM:-10}
+      APISHIP_PLACE_HEIGHT_CM: ${APISHIP_PLACE_HEIGHT_CM:-10}
+      APISHIP_DEFAULT_ITEM_COST: ${APISHIP_DEFAULT_ITEM_COST:-1.00}
+      APISHIP_TIMEOUT: ${APISHIP_TIMEOUT:-20}
+      APISHIP_MAX_RETRIES: ${APISHIP_MAX_RETRIES:-2}
+      APISHIP_RETRY_BACKOFF_BASE: ${APISHIP_RETRY_BACKOFF_BASE:-0.5}
+      APISHIP_RETRY_BACKOFF_MAX: ${APISHIP_RETRY_BACKOFF_MAX:-4.0}
+      APISHIP_AUTO_CREATE_ON_CONFIRMED: ${APISHIP_AUTO_CREATE_ON_CONFIRMED:-false}
+      APISHIP_AUTO_CREATE_ON_PAID: ${APISHIP_AUTO_CREATE_ON_PAID:-false}
       YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
       YOOKASSA_SECRET: ${YOOKASSA_SECRET:-}
       DELIVERY_TARIFFS_JSON: ${DELIVERY_TARIFFS_JSON:-}
@@ -62,13 +106,23 @@ services:
       EMAIL_IMAP_MAILBOX: ${EMAIL_IMAP_MAILBOX:-INBOX}
       EMAIL_LOGIN: ${EMAIL_LOGIN:-}
       EMAIL_PASSWORD: ${EMAIL_PASSWORD:-}
-    ports:
-      - "8001:8000"
     volumes:
       - ./backend:/app
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py runserver 0.0.0.0:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=3); sys.exit(0)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
@@ -85,8 +139,14 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://orderflow:orderflow@db:5432/orderflow}
       LLM_PROVIDER: ${LLM_PROVIDER:-openai}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      LLM_HTTP_MAX_RETRIES: ${LLM_HTTP_MAX_RETRIES:-2}
+      LLM_HTTP_RETRY_BACKOFF_BASE: ${LLM_HTTP_RETRY_BACKOFF_BASE:-0.5}
+      LLM_HTTP_RETRY_BACKOFF_MAX: ${LLM_HTTP_RETRY_BACKOFF_MAX:-4.0}
+      LLM_HTTP_RETRY_STATUS_CODES: ${LLM_HTTP_RETRY_STATUS_CODES:-408,409,425,429,500,502,503,504}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-30}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-http://127.0.0.1:8000/v1}
       VLLM_API_KEY: ${VLLM_API_KEY:-EMPTY}
       VLLM_MODEL: ${VLLM_MODEL:-Qwen/Qwen2.5-7B-Instruct}
@@ -96,13 +156,16 @@ services:
       YANDEXGPT_MODEL_URI: ${YANDEXGPT_MODEL_URI:-}
       YANDEXGPT_API_URL: ${YANDEXGPT_API_URL:-https://llm.api.cloud.yandex.net/foundationModels/v1/completion}
       YANDEXGPT_TIMEOUT: ${YANDEXGPT_TIMEOUT:-30}
+      YANDEXGPT_MAX_RETRIES: ${YANDEXGPT_MAX_RETRIES:-}
       GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:-}
       GIGACHAT_MODEL: ${GIGACHAT_MODEL:-GigaChat-2-Max}
       GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
       GIGACHAT_AUTH_URL: ${GIGACHAT_AUTH_URL:-https://ngw.devices.sberbank.ru:9443/api/v2/oauth}
       GIGACHAT_API_URL: ${GIGACHAT_API_URL:-https://gigachat.devices.sberbank.ru/api/v1/chat/completions}
+      GIGACHAT_CERT_PATH: ${GIGACHAT_CERT_PATH:-}
       GIGACHAT_VERIFY_SSL: ${GIGACHAT_VERIFY_SSL:-true}
       GIGACHAT_TIMEOUT: ${GIGACHAT_TIMEOUT:-30}
+      GIGACHAT_MAX_RETRIES: ${GIGACHAT_MAX_RETRIES:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       BPIUM_BASE_URL: ${BPIUM_BASE_URL:-}
       BPIUM_LOGIN: ${BPIUM_LOGIN:-}
@@ -110,6 +173,41 @@ services:
       BPIUM_CATALOG_ID: ${BPIUM_CATALOG_ID:-}
       BPIUM_API_PREFIX: ${BPIUM_API_PREFIX:-/api/v1}
       BPIUM_TIMEOUT: ${BPIUM_TIMEOUT:-15}
+      BPIUM_FIELD_MAP: ${BPIUM_FIELD_MAP:-{}}
+      APISHIP_ENABLED: ${APISHIP_ENABLED:-false}
+      APISHIP_BASE_URL: ${APISHIP_BASE_URL:-http://api.dev.apiship.ru/v1}
+      APISHIP_TOKEN: ${APISHIP_TOKEN:-}
+      APISHIP_LOGIN: ${APISHIP_LOGIN:-}
+      APISHIP_PASSWORD: ${APISHIP_PASSWORD:-}
+      APISHIP_AUTH_PATH: ${APISHIP_AUTH_PATH:-/users/login}
+      APISHIP_AUTH_HEADER: ${APISHIP_AUTH_HEADER:-Authorization}
+      APISHIP_AUTH_PREFIX: ${APISHIP_AUTH_PREFIX:-}
+      APISHIP_CALCULATOR_PATH: ${APISHIP_CALCULATOR_PATH:-/calculator}
+      APISHIP_ORDERS_PATH: ${APISHIP_ORDERS_PATH:-/orders/sync}
+      APISHIP_ORDER_STATUS_PATH: ${APISHIP_ORDER_STATUS_PATH:-/orders/status}
+      APISHIP_PROVIDER_KEY: ${APISHIP_PROVIDER_KEY:-}
+      APISHIP_TARIFF_ID: ${APISHIP_TARIFF_ID:-}
+      APISHIP_CLIENT_NUMBER_PREFIX: ${APISHIP_CLIENT_NUMBER_PREFIX:-orderflow}
+      APISHIP_FROM_COUNTRY_CODE: ${APISHIP_FROM_COUNTRY_CODE:-RU}
+      APISHIP_SENDER_NAME: ${APISHIP_SENDER_NAME:-OrderFlow Store}
+      APISHIP_SENDER_PHONE: ${APISHIP_SENDER_PHONE:-+79990000000}
+      APISHIP_SENDER_EMAIL: ${APISHIP_SENDER_EMAIL:-}
+      APISHIP_RECIPIENT_COUNTRY_CODE: ${APISHIP_RECIPIENT_COUNTRY_CODE:-RU}
+      APISHIP_FROM_CITY: ${APISHIP_FROM_CITY:-}
+      APISHIP_FROM_ADDRESS: ${APISHIP_FROM_ADDRESS:-}
+      APISHIP_PICKUP_TYPE: ${APISHIP_PICKUP_TYPE:-courier}
+      APISHIP_DELIVERY_TYPE: ${APISHIP_DELIVERY_TYPE:-courier}
+      APISHIP_DEFAULT_WEIGHT_KG: ${APISHIP_DEFAULT_WEIGHT_KG:-1.0}
+      APISHIP_PLACE_LENGTH_CM: ${APISHIP_PLACE_LENGTH_CM:-10}
+      APISHIP_PLACE_WIDTH_CM: ${APISHIP_PLACE_WIDTH_CM:-10}
+      APISHIP_PLACE_HEIGHT_CM: ${APISHIP_PLACE_HEIGHT_CM:-10}
+      APISHIP_DEFAULT_ITEM_COST: ${APISHIP_DEFAULT_ITEM_COST:-1.00}
+      APISHIP_TIMEOUT: ${APISHIP_TIMEOUT:-20}
+      APISHIP_MAX_RETRIES: ${APISHIP_MAX_RETRIES:-2}
+      APISHIP_RETRY_BACKOFF_BASE: ${APISHIP_RETRY_BACKOFF_BASE:-0.5}
+      APISHIP_RETRY_BACKOFF_MAX: ${APISHIP_RETRY_BACKOFF_MAX:-4.0}
+      APISHIP_AUTO_CREATE_ON_CONFIRMED: ${APISHIP_AUTO_CREATE_ON_CONFIRMED:-false}
+      APISHIP_AUTO_CREATE_ON_PAID: ${APISHIP_AUTO_CREATE_ON_PAID:-false}
       YOOKASSA_SHOP_ID: ${YOOKASSA_SHOP_ID:-}
       YOOKASSA_SECRET: ${YOOKASSA_SECRET:-}
       DELIVERY_TARIFFS_JSON: ${DELIVERY_TARIFFS_JSON:-}
@@ -127,9 +225,38 @@ services:
              else
                python manage.py run_bot;
              fi"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, sys; cmd = open('/proc/1/cmdline', 'rb').read().decode('utf-8', 'ignore'); token = os.getenv('TELEGRAM_BOT_TOKEN', '').strip(); ok = True if not token else ('run_bot' in cmd); sys.exit(0 if ok else 1)",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health/ > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   postgres_data:

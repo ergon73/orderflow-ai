@@ -7,6 +7,7 @@ from decimal import Decimal
 import requests
 from django.utils import timezone
 
+from integrations.apiship import apiship_auto_create_on_paid, create_shipment_for_order_safe
 from orders.models import Order
 
 
@@ -74,5 +75,6 @@ def mark_order_paid_if_succeeded(order: Order, payment_data: dict) -> Order:
         order.is_paid = True
         order.paid_at = timezone.now()
         order.save(update_fields=["is_paid", "paid_at", "updated_at"])
+        if apiship_auto_create_on_paid():
+            create_shipment_for_order_safe(order)
     return order
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from config.logging_utils import sanitize_exception_for_log
 from orders.models import Order
 
 from .bpium import BpiumClient
@@ -39,6 +40,11 @@ def build_bpium_payload(order: Order) -> dict:
         "is_paid": order.is_paid,
         "paid_at": order.paid_at.isoformat() if order.paid_at else None,
         "track_number": order.track_number or None,
+        "shipping_provider": order.shipping_provider or None,
+        "shipping_external_id": order.shipping_external_id or None,
+        "tracking_url": order.tracking_url or None,
+        "shipping_status_raw": order.shipping_status_raw or None,
+        "shipping_synced_at": order.shipping_synced_at.isoformat() if order.shipping_synced_at else None,
     }
 
 
@@ -69,6 +75,6 @@ def sync_order_to_bpium_safe(order: Order) -> bool:
             "bpium_sync_failed order_id=%s status=%s error=%s",
             order.id,
             order.status,
-            exc,
+            sanitize_exception_for_log(exc),
         )
         return False

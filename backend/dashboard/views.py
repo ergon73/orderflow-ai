@@ -2,6 +2,7 @@ import csv
 import json
 import re
 
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q
 from django.db.models import Count
@@ -13,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from ai_parser.services import process_intake_message
 from bot.notifications import send_order_status_notification
+from integrations.apiship import apiship_auto_create_on_confirmed, create_shipment_for_order_safe
 from integrations.payment import YooKassaError, create_payment, get_payment, mark_order_paid_if_succeeded
 from integrations.sync import sync_order_to_bpium_safe
 from orders.models import Order
@@ -24,6 +26,7 @@ from orders.services import (
 from orders.state_machine import VALID_TRANSITIONS
 
 from .forms import StorefrontOrderForm
+from .rate_limit import storefront_post_rate_limit
 
 
 def _build_raw_text(form_data: dict) -> str:
@@ -36,6 +39,7 @@ def _build_raw_text(form_data: dict) -> str:
     return f"Хочу {quantity} x {selected_product}"
 
 
+@storefront_post_rate_limit
 def storefront_view(request):
     products = [
         {"title": "Кружка", "price": "590"},
@@ -74,6 +78,7 @@ def storefront_view(request):
     )
 
 
+@login_required
 def order_list_view(request):
     queryset = (
         Order.objects.select_related("customer")
@@ -112,6 +117,7 @@ def order_list_view(request):
     return render(request, "dashboard/orders_list.html", context)
 
 
+@login_required
 def order_detail_view(request, order_id: int):
     order = get_object_or_404(
         Order.objects.select_related("customer").prefetch_related("items", "history"),
@@ -126,6 +132,7 @@ def order_detail_view(request, order_id: int):
 
 
 @require_POST
+@login_required
 def order_status_update_view(request, order_id: int):
     order = get_object_or_404(Order, id=order_id)
     new_status = request.POST.get("status", "").strip()
@@ -152,6 +159,8 @@ def order_status_update_view(request, order_id: int):
 
     send_order_status_notification(order)
     sync_order_to_bpium_safe(order)
+    if order.status == Order.Status.CONFIRMED and apiship_auto_create_on_confirmed():
+        create_shipment_for_order_safe(order)
 
     if request.headers.get("HX-Request"):
         return render(request, "dashboard/partials/status_badge.html", {"order": order})
@@ -160,6 +169,7 @@ def order_status_update_view(request, order_id: int):
 
 
 @require_POST
+@login_required
 def mark_order_paid_view(request, order_id: int):
     order = get_object_or_404(Order, id=order_id)
     if not order.is_paid:
@@ -170,6 +180,7 @@ def mark_order_paid_view(request, order_id: int):
     return redirect("dashboard-order-detail", order_id=order.id)
 
 
+@login_required
 def stats_view(request):
     status_stats = list(
         Order.objects.values("status").annotate(total=Count("id")).order_by("status")
@@ -194,6 +205,7 @@ def stats_view(request):
     )
 
 
+@login_required
 def export_orders_csv(request):
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = "attachment; filename=orders_export.csv"
@@ -212,6 +224,11 @@ def export_orders_csv(request):
             "delivery_cost",
             "total_amount",
             "track_number",
+            "shipping_provider",
+            "shipping_external_id",
+            "tracking_url",
+            "shipping_status_raw",
+            "shipping_synced_at",
             "bpium_record_id",
         ]
     )
@@ -232,12 +249,18 @@ def export_orders_csv(request):
                 order.delivery_cost or "",
                 order.total_amount or "",
                 order.track_number,
+                order.shipping_provider,
+                order.shipping_external_id,
+                order.tracking_url,
+                order.shipping_status_raw,
+                order.shipping_synced_at.isoformat() if order.shipping_synced_at else "",
                 order.bpium_record_id,
             ]
         )
     return response
 
 
+@login_required
 def invoice_view(request, order_id: int):
     order = get_object_or_404(Order.objects.select_related("customer"), id=order_id)
     context = {"order": order}
@@ -261,6 +284,7 @@ def _extract_payment_id(comment: str) -> str | None:
 
 
 @require_POST
+@login_required
 def create_payment_link_view(request, order_id: int):
     order = get_object_or_404(Order, id=order_id)
     try:
@@ -285,6 +309,7 @@ def create_payment_link_view(request, order_id: int):
 
 
 @require_POST
+@login_required
 def refresh_payment_status_view(request, order_id: int):
     order = get_object_or_404(Order, id=order_id)
     payment_id = request.POST.get("payment_id", "").strip() or _extract_payment_id(order.comment)
