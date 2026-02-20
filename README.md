@@ -1,13 +1,22 @@
 # OrderFlow AI
 
 OrderFlow AI - омниканальная система обработки заказов для e-commerce.
-Проект принимает заказы из Telegram, веб-витрины и email, извлекает структуру заказа из свободного текста, ведет заказ через state machine, синхронизирует данные с Bpium и поддерживает тестовую оплату через YooKassa sandbox.
+Проект принимает заказы из Telegram, веб-витрины и email, извлекает структуру заказа из свободного текста, ведет заказ через state machine, синхронизирует данные с Bpium, поддерживает тестовую оплату через YooKassa sandbox и тестовый контур доставки через ApiShip.
 
 ## Текущий статус
 
-- Спринты 0-9 реализованы на уровне кода, часть задач спринта 10 закрыта.
+- Спринты 0-9 реализованы на уровне кода, Sprint 10 в финализации артефактов защиты.
 - Live-проверки интеграций выполнены: IMAP, Telegram bot, Bpium, YooKassa sandbox.
-- Локальные тесты: `30` passing.
+- Локальные тесты: `90` passing.
+- Подтверждена accuracy на 50 кейсах: `100%` (GigaChat Pro), см. `docs/ai_accuracy_50_report.md`.
+- Покрытие тестами: `77%` (coverage report), см. `docs/coverage_report.txt`.
+
+## Навигация по документации
+
+- Портфельный обзор репозитория: `PORTFOLIO_OVERVIEW.md`.
+- Единый индекс документации: `docs/DOCUMENTATION_INDEX.md`.
+- Пакет артефактов для куратора: `docs/curator_submission_checklist.md`.
+- Reverse-engineered ТЗ: `docs/technical_assignment_mvp.md`.
 
 ## Стек
 
@@ -16,7 +25,7 @@ OrderFlow AI - омниканальная система обработки за
 - Bot: aiogram 3
 - DB: PostgreSQL
 - Frontend: Django templates + HTMX + Chart.js
-- Integrations: Bpium API, YooKassa API, IMAP
+- Integrations: Bpium API, YooKassa API, ApiShip API, IMAP
 
 ## Архитектура (кратко)
 
@@ -51,7 +60,8 @@ orderflow-ai/
 │   │   ├── admin.py                          # Django Admin конфигурация
 │   │   └── management/commands/check_email.py # Email intake через IMAP
 │   ├── ai_parser/                            # AI-парсинг свободного текста
-│   │   ├── client.py                         # LLM-клиент (OpenAI/Mock)
+│   │   ├── client.py                         # Совместимый фасад LLM-клиентов
+│   │   ├── llm/                              # Модули retry/normalization/providers
 │   │   ├── schemas.py                        # Pydantic-схемы извлечения
 │   │   ├── validators.py                     # Пост-валидация и missing_fields
 │   │   ├── prompts.py                        # Промпты primary parse/slot filling
@@ -69,15 +79,31 @@ orderflow-ai/
 │   │   ├── bpium.py                          # Bpium API client
 │   │   ├── sync.py                           # Sync order -> Bpium (upsert)
 │   │   ├── payment.py                        # YooKassa create/get payment
-│   │   └── delivery.py                       # Расчет доставки по тарифам
+│   │   ├── apiship.py                        # ApiShip client + calculator/create/status sync
+│   │   └── delivery.py                       # Расчет доставки (ApiShip + fallback тарифы)
 │   ├── templates/dashboard/                  # HTML-шаблоны витрины/дашборда/счета
 │   └── tests/                                # Интеграционные и бизнес-тесты
 ├── docs/
-│   └── prompts.md                            # Библиотека промптов проекта
+│   ├── prompts.md                            # Библиотека промптов проекта
+│   ├── ai_accuracy_50_report.md              # Отчет accuracy на 50 кейсах
+│   ├── coverage_report.txt                   # Отчет покрытия тестами
+│   ├── fallbacks_log.md                      # Журнал сработавших fallback-сценариев
+│   ├── demo_scenarios_abcd.md                # Сценарии A/B/C/D для защиты
+│   ├── screenshots_manifest.md               # Манифест скриншотов для сдачи
+│   ├── demo_video_script_5_7_min.md          # Сценарий записи демо 5-7 минут
+│   ├── screenshots/                          # Скриншоты артефактов защиты
+│   ├── demo_video/                           # Записанное демо-видео
+│   ├── technical_assignment_mvp.md           # Уточненное ТЗ (reverse engineering)
+│   └── datasets/ai_accuracy_50.json          # Набор из 50 тестовых заказов
 ├── scripts/
-│   └── seed_data.py                          # Генератор демо-данных
-├── docker-compose.yml                        # Оркестрация web/bot/db
+│   ├── seed_data.py                          # Генератор демо-данных
+│   ├── benchmark_ru_models.py                # Бенчмарк/accuracy LLM
+│   ├── capture_screenshots.mjs               # Автосъёмка скриншотов защиты
+│   └── record_demo_video.mjs                 # Автозапись демо-видео (webm)
+├── docker-compose.yml                        # Оркестрация web/bot/db/nginx
+├── .env.demo.ru.example                      # Демо-профиль без OpenAI (RF cloud)
 ├── .env.example                              # Шаблон переменных окружения
+├── PORTFOLIO_OVERVIEW.md                     # Быстрый гид по проекту для портфолио
 ├── plan-v2.md                                # Актуальный спринт-план и чек-лист
 └── README.md                                 # Документация проекта
 ```
@@ -91,13 +117,34 @@ AI-парсер переключается через env-переменную `
 - `gigachat` - GigaChat API
 - `mock` - локальный mock-парсер (без внешнего API)
 
+Для `gigachat` используется `function calling` (`functions`) для structured extraction;
+дополнительно включен safety-net: phone/email/address добираются regex из raw-текста, если модель вернула их пустыми.
+Зафиксированный default-профиль по benchmark (S3-C12): локальный `vllm` (`Qwen/Qwen2.5-VL-7B-Instruct-AWQ`).
+Резервный профиль: `gigachat` с baseline `GigaChat-2-Pro` и автоэскалацией в `GigaChat-2-Max`.
+
+Quality-gateway и fallback-цепочка:
+- Ответ модели проходит через строгую схему `OrderExtract` (Pydantic).
+- Если ответ частично неконсистентный, применяется tolerant parsing (починка JSON + алиасы полей).
+- Затем выполняется пост-валидация (`missing_fields`, нормализация телефона, проверка адреса/email).
+- `missing_fields` пересчитывается по каноническим слотам (`items`, `delivery.address`, `customer.phone`, `customer.email`) и не принимает шумные произвольные ключи модели.
+- Статус заказа определяется по качеству извлечения: при `missing_fields` -> `needs_info`, иначе `confirmed`.
+- Для `gigachat` включена автоэскалация: `GigaChat-2-Pro` -> `GigaChat-2-Max` для сложных/рискованных случаев.
+- Для `yandexgpt` включена автоэскалация: `yandexgpt-lite` -> `yandexgpt` для сложных/рискованных случаев.
+- Для облачных провайдеров (`openai`, `yandexgpt`, `gigachat`) включены HTTP-retry с backoff по транзиентным ошибкам (429/5xx/timeout/connection reset).
+- При сбоях внешних интеграций основной pipeline не падает (fallback-поведение).
+
+Режим ускоренных сравнительных тестов (без изменения бизнес-логики):
+- Можно включить shadow-eval и прогонять каждый intake сразу через несколько провайдеров.
+- Основной провайдер формирует `Order`/статус как обычно; дополнительные результаты сохраняются только как `ExtractionAttempt` с префиксом `shadow:`.
+- Shadow-attempts не участвуют в slot-filling контексте и не влияют на счётчик manual-review.
+
 Примеры:
 
 ```env
 LLM_PROVIDER=vllm
 VLLM_BASE_URL=http://127.0.0.1:8000/v1
 VLLM_API_KEY=EMPTY
-VLLM_MODEL=Qwen/Qwen2.5-7B-Instruct
+VLLM_MODEL=Qwen/Qwen2.5-VL-7B-Instruct-AWQ
 ```
 
 ```env
@@ -105,14 +152,68 @@ LLM_PROVIDER=yandexgpt
 YANDEXGPT_API_KEY=...
 YANDEXGPT_FOLDER_ID=...
 YANDEXGPT_MODEL_NAME=yandexgpt-lite
+# Обычно оставляется пустым, тогда URI строится автоматически:
+# gpt://<YANDEXGPT_FOLDER_ID>/<YANDEXGPT_MODEL_NAME>/latest
+# Для RC-канала можно явно задать .../rc
+YANDEXGPT_MODEL_URI=
+# Опционально: эскалация lite -> full
+YANDEXGPT_ESCALATION_ENABLED=true
+YANDEXGPT_ESCALATION_MODEL_NAME=yandexgpt
+# Опционально: явный URI эскалации, например gpt://<FOLDER_ID>/yandexgpt/latest или .../rc
+YANDEXGPT_ESCALATION_MODEL_URI=
+YANDEXGPT_ESCALATION_TEXT_LEN=260
+YANDEXGPT_ESCALATION_MISSING_FIELDS=2
 ```
 
 ```env
 LLM_PROVIDER=gigachat
 GIGACHAT_AUTH_KEY=...
-GIGACHAT_MODEL=GigaChat-2-Max
+GIGACHAT_MODEL=GigaChat-2-Pro
 GIGACHAT_SCOPE=GIGACHAT_API_PERS
+# Опционально: путь к .cer (если не установлен в trust store)
+GIGACHAT_CERT_PATH=russian_trusted_root_ca.cer
+# Опционально: эскалация сложных кейсов на Max
+GIGACHAT_ESCALATION_ENABLED=true
+GIGACHAT_ESCALATION_MODEL=GigaChat-2-Max
+GIGACHAT_ESCALATION_TEXT_LEN=260
+GIGACHAT_ESCALATION_MISSING_FIELDS=2
+# Опционально: параллельный сравнительный прогон (shadow)
+LLM_MULTI_EVAL_ENABLED=true
+LLM_MULTI_EVAL_PROVIDERS=gigachat,yandexgpt,vllm
+LLM_MULTI_EVAL_PARALLEL=true
+LLM_MULTI_EVAL_MAX_WORKERS=3
+# Shared retry policy for cloud providers
+LLM_HTTP_MAX_RETRIES=2
+LLM_HTTP_RETRY_BACKOFF_BASE=0.5
+LLM_HTTP_RETRY_BACKOFF_MAX=4.0
+LLM_HTTP_RETRY_STATUS_CODES=408,409,425,429,500,502,503,504
 ```
+
+Где получить доступы GigaChat:
+- Кабинет разработчика: `https://developers.sber.ru/studio/login`
+- Для этого проекта нужен `GIGACHAT_AUTH_KEY` (credentials-token для заголовка `Authorization: Basic ...`).
+- Поддерживаемые scope:
+`GIGACHAT_API_PERS` (физлица), `GIGACHAT_API_B2B` (ИП/юрлица, платные пакеты), `GIGACHAT_API_CORP` (ИП/юрлица, pay-as-you-go).
+- Для b2b-продукта в production обычно выбирают `GIGACHAT_API_B2B` или `GIGACHAT_API_CORP`.
+- Для TLS можно либо установить сертификат Минцифры в trust store, либо указать `GIGACHAT_CERT_PATH`.
+- Если в старом проекте были переменные `GIGACHAT_CLIENT_ID`/`GIGACHAT_CLIENT_SECRET`, в текущем коде они не используются напрямую.
+
+Рекомендуемые парные профили (без смешивания классов):
+- `quality`: `YANDEXGPT_MODEL_NAME=yandexgpt` + `GIGACHAT_MODEL=GigaChat-2-Max`
+- `speed`: `YANDEXGPT_MODEL_NAME=yandexgpt-lite` + `GIGACHAT_MODEL=GigaChat-2`  
+  (если `GigaChat-2-Lite` доступна в вашем аккаунте, используйте её)
+
+Выбранный runtime-профиль (после benchmark `docs/benchmark_ru_models_report.md`):
+- `default` (`dev/demo`): `LLM_PROVIDER=vllm`, `VLLM_MODEL=Qwen/Qwen2.5-VL-7B-Instruct-AWQ`
+- `fallback` (операционный): переключить `LLM_PROVIDER=gigachat`,
+`GIGACHAT_MODEL=GigaChat-2-Pro`, `GIGACHAT_ESCALATION_MODEL=GigaChat-2-Max`
+- `shadow/резерв`: `yandexgpt-lite -> yandexgpt` (для параллельной оценки и сравнения)
+
+Профиль для защиты без OpenAI:
+- готовый шаблон: `.env.demo.ru.example`
+- целевой режим: `LLM_PROVIDER=gigachat` (`GigaChat-2-Pro -> GigaChat-2-Max`)
+- `OPENAI_API_KEY` оставляется пустым
+- альтернатива для локального стенда: переключить на `LLM_PROVIDER=vllm`
 
 ## Запуск локально
 
@@ -145,7 +246,8 @@ GIGACHAT_SCOPE=GIGACHAT_API_PERS
 Приложение доступно на `http://127.0.0.1:8001/` (внешний порт `8001`).
 
 Сервисы:
-- `web` (Django)
+- `nginx` (reverse proxy, внешний вход на `:8001`)
+- `web` (Django, внутренний сервис)
 - `bot` (aiogram polling)
 - `db` (PostgreSQL)
 
@@ -184,10 +286,29 @@ GIGACHAT_SCOPE=GIGACHAT_API_PERS
 - В дашборде доступно создание ссылки на оплату.
 - Есть ручной fallback: "Отметить как оплачено вручную".
 
+### ApiShip (test delivery)
+
+- При включении `APISHIP_ENABLED=true` расчет доставки идет через ApiShip `calculator`; при ошибках используется локальный fallback по тарифам.
+- Для тестового контура используйте:
+`APISHIP_BASE_URL=http://api.dev.apiship.ru/v1`,
+`APISHIP_AUTH_PATH=/users/login`,
+`APISHIP_AUTH_PREFIX=` (пусто),
+`APISHIP_FROM_CITY` и `APISHIP_FROM_ADDRESS` (обязательны).
+- Создание отправки отправляет `OrderRequest` на `APISHIP_ORDERS_PATH` (по умолчанию `/orders/sync`), автоматически подбирая `providerKey/tariffId` из `calculator`, если они не заданы через `APISHIP_PROVIDER_KEY` + `APISHIP_TARIFF_ID`.
+- Калькулятору нужны габариты; по умолчанию используются `APISHIP_PLACE_LENGTH_CM=10`, `APISHIP_PLACE_WIDTH_CM=10`, `APISHIP_PLACE_HEIGHT_CM=10`.
+- Если в заказе у позиции нет `price`, для оценки отправки подставляется `APISHIP_DEFAULT_ITEM_COST` (по умолчанию `1.00`).
+- Поддержано создание тестовой отправки и сохранение полей доставки в `Order`: `shipping_provider`, `shipping_external_id`, `track_number`, `tracking_url`, `shipping_status_raw`, `shipping_synced_at`.
+- Доступна команда синхронизации статусов:
+`python manage.py sync_shipping_statuses --limit 50`
+
 ## Тесты
 
 - `cd backend`
 - `python manage.py test`
+- Coverage:
+  - `coverage run manage.py test --keepdb --noinput`
+  - `coverage report`
+  - последний отчёт: `docs/coverage_report.txt`
 
 Покрыты:
 - parser + validators
@@ -196,6 +317,27 @@ GIGACHAT_SCOPE=GIGACHAT_API_PERS
 - multi-channel intake
 - dashboard endpoints
 - integration fallbacks
+
+## Benchmark RU моделей
+
+Скрипт сравнения RU/локальных моделей на едином наборе intake:
+
+- `python scripts/benchmark_ru_models.py --include-vllm`
+- Выбор конкретных таргетов: `--targets gigachat-pro` (или список через запятую)
+
+Артефакты:
+- `docs/benchmark_ru_models_report.md`
+- `docs/benchmark_ru_models_report.json`
+- Набор для Sprint 10 (50 заказов): `docs/datasets/ai_accuracy_50.json`
+- Отчёт accuracy на 50 заказах: `docs/ai_accuracy_50_report.md` / `docs/ai_accuracy_50_report.json`
+
+Метрики в отчете:
+- `parse_success_rate` (`strict success`) - без ошибок и без `missing_fields` вообще
+- `adjusted_success_rate` - без ошибок и без неожиданных пропусков; ожидаемый `missing` (когда поле реально отсутствует в исходном тексте) не считается ошибкой модели
+- `missing_fields_rate` - доля кейсов с любыми пропусками
+- `unexpected_missing_rate` - доля кейсов с пропусками, которых не должно было быть по исходному тексту
+- `p95 latency`
+- справочные `RUB/1000 токенов` (если заданы)
 
 ## Seed-данные
 
@@ -212,6 +354,11 @@ GIGACHAT_SCOPE=GIGACHAT_API_PERS
 ## Privacy-note
 
 Проект хранит персональные данные клиентов (имя, телефон, email, адрес доставки) в PostgreSQL.
+На защите используется профиль без OpenAI (`.env.demo.ru.example`):
+- основной провайдер: `gigachat` (`GigaChat-2-Pro` + эскалация в `GigaChat-2-Max`);
+- резервный локальный контур: `vllm` (без отправки данных во внешнее облако);
+- `OPENAI_API_KEY` пустой в демо-профиле.
+
 Перед использованием в реальной среде нужно:
 - иметь правовые основания обработки ПДн;
 - ограничить доступ к данным;
@@ -225,3 +372,21 @@ GIGACHAT_SCOPE=GIGACHAT_API_PERS
 - Ролевая модель менеджеров.
 - Улучшенный мониторинг и алерты.
 - Расширенные отчеты и SLA-метрики.
+- Production-readiness трек (security/observability/backup+restore/RPO-RTO/pentest/vendor-SLA/support model):
+`docs/production_readiness_roadmap.md`.
+- UX/UI & CX трек (бот + storefront, KPI-driven улучшения):
+`docs/ux_cx_roadmap.md`.
+
+## Repository Standards
+
+- `LICENSE`
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `CODE_OF_CONDUCT.md`
+- `SUPPORT.md`
+- `CHANGELOG.md`
+
+## Документы сдачи
+
+- Уточненное техническое задание (reverse engineering):
+`docs/technical_assignment_mvp.md`.
