@@ -21,7 +21,7 @@
 - принимает заказы из Telegram, web-формы и email;
 - извлекает структуру заказа из естественного языка;
 - управляет статусами заказа через формализованную state machine;
-- синхронизирует заказ с CRM;
+- синхронизирует заказ с внешним CRM-регистром (в MVP: Bpium catalog API);
 - поддерживает оплату, доставку и менеджерский dashboard.
 
 ## 3. Границы MVP
@@ -30,7 +30,7 @@
 
 - 3 канала intake: Telegram, web, email.
 - AI parsing с пост-валидацией и slot filling.
-- CRM синхронизация в Bpium.
+- CRM-sync слой в Bpium catalog API (upsert карточки заказа, статусы, fallback при сбоях).
 - Оплата через YooKassa sandbox + fallback.
 - Доставка через ApiShip (test contour) + fallback тарифы.
 - Dashboard менеджера: список, карточка, статусы, аналитика, CSV, invoice.
@@ -43,6 +43,7 @@
 - Формальные SLA-контракты с боевыми вендорами.
 - Полноценная enterprise-поддержка L1/L2/L3 в эксплуатации.
 - Финальная промышленная приемка по пентесту.
+- Полноценное CRM-внедрение (воронки, задачи, сложные роли/автоматизации) и двусторонняя интеграция `amoCRM <-> Bpium`.
 
 Эти пункты вынесены в post-MVP roadmap:
 - `docs/production_readiness_roadmap.md`
@@ -86,13 +87,14 @@
 
 ## 4.4 Этап 4: CRM integration
 
-- `FR-13` Реализована интеграция с CRM (в MVP выбран Bpium как эквивалент Google Sheets/Airtable).
+- `FR-13` Реализован CRM-sync контур через Bpium catalog API (табличный CRM-регистр для MVP).
 - `FR-14` Реализован upsert записи заказа по `external_id=order_id`.
 - `FR-15` Ошибки CRM не должны ломать основной pipeline (graceful degradation).
 
 Критерии приемки:
 - при `confirmed` запись в CRM создается/обновляется;
 - при ошибке CRM заказ остается операбельным.
+- source of truth для бизнес-логики остается PostgreSQL, Bpium используется как внешний CRM-регистр.
 
 ## 4.5 Этап 5: Доставка и оплата
 
@@ -145,6 +147,8 @@ web-контур в Docker запускается через `gunicorn`, вне�
 - Система сдана как расширенный MVP, не как production-ready контур.
 - Внешние интеграции используются в sandbox/test-профилях, где применимо.
 - Для эксплуатации в production обязателен этап production readiness по отдельному плану.
+- В рамках MVP Bpium используется как табличный CRM-регистр (API-синхронизация), а не как полнофункциональная CRM-платформа.
+- Трек `amoCRM <-> Bpium` вынесен в post-MVP как интеграционный low-code/no-code контур с отдельными SLA/monitoring требованиями.
 
 ## 7. Трассировка исходного задания к реализации
 
@@ -172,3 +176,4 @@ web-контур в Docker запускается через `gunicorn`, вне�
 
 - Production readiness: `docs/production_readiness_roadmap.md`.
 - UX/UI & CX: `docs/ux_cx_roadmap.md`.
+- CRM evolution (`amoCRM <-> Bpium`): `docs/production_readiness_roadmap.md` (раздел CRM Layer Evolution).

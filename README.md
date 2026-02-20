@@ -279,6 +279,7 @@ LLM_HTTP_RETRY_STATUS_CODES=408,409,425,429,500,502,503,504
 
 - Синхронизация запускается при `confirmed` и важных сменах статуса.
 - Primary storage остается PostgreSQL.
+- В MVP Bpium используется как внешний CRM-регистр (`CRM-sync`), а не как полнофункциональная CRM-платформа.
 - Используется fallback: ошибки Bpium не ломают order pipeline.
 
 ### YooKassa (sandbox)

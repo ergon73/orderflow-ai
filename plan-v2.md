@@ -458,6 +458,7 @@
 - [ ] `PRD-11` Зафиксировать SLA/OLA поддержки по приоритетам P1/P2/P3, процесс эскалаций и on-call модель.
 - [ ] `PRD-12` Для аутсорса формализовать обязательные требования: NDA, least-privilege доступы, аудит действий, резерв смен.
 - [ ] `PRD-13` Ввести регулярные drills поддержки и восстановления (ежеквартально) с проверкой фактических RPO/RTO.
+- [ ] `PRD-14` CRM evolution track: формализовать интеграционный blueprint `OrderFlow/Bpium <-> amoCRM` (no-code/direct API, mapping, idempotency, SLA).
 
 Подробный чеклист и критерии:
 - `docs/production_readiness_roadmap.md`

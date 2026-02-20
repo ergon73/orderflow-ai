@@ -77,7 +77,31 @@ NDA, least-privilege доступ, аудит действий, требован
 - [ ] `PRD-SUP-07` Ввести регулярные тренировки поддержки:
 минимум ежеквартальные drills по инцидентам и восстановлению.
 
-## 7) Production Acceptance Criteria
+## 7) CRM Layer Evolution (amoCRM <-> Bpium)
+
+- [ ] `PRD-CRM-01` Зафиксировать роль систем:
+`PostgreSQL` (source of truth), `Bpium` (операционный CRM-регистр), `amoCRM` (frontend CRM для лидов/сделок, если требуется бизнесом).
+- [ ] `PRD-CRM-02` Согласовать канонический data contract:
+сущности, обязательные поля, `external_id`, правила маппинга статусов и дедупликации.
+- [ ] `PRD-CRM-03` Определить и документировать направление потоков:
+`amoCRM -> Bpium/OrderFlow` (webhooks) и `OrderFlow/Bpium -> amoCRM` (REST API).
+- [ ] `PRD-CRM-04` Реализовать idempotency и conflict-resolution policy
+(`last-write-wins`/приоритет источника/ручная эскалация).
+- [ ] `PRD-CRM-05` Подготовить no-code контур (ApiX-Drive/ApiMonster или аналог) для базового обмена:
+лиды/сделки/контакты/статусы.
+- [ ] `PRD-CRM-06` Подготовить критерии, когда нужен direct API adapter (кодовый контур) вместо no-code:
+нагрузка, SLA, сложная бизнес-логика, аудит.
+- [ ] `PRD-CRM-07` Настроить мониторинг и алерты по CRM-синхронизации:
+retry rate, lag, конфликтные апдейты, dead-letter queue.
+
+Краткая инструкция (post-MVP blueprint):
+1. Определить master-систему по каждой сущности (`lead/deal/contact/order/status/payment/shipping`).
+2. Зафиксировать field mapping (`OrderFlow/Bpium` <-> `amoCRM`) и `external_id` правила.
+3. Подключить вебхуки `amoCRM` и сценарии отправки в `Bpium/OrderFlow` (через no-code коннектор или adapter).
+4. Настроить обратный поток статусов/оплат/доставки в `amoCRM`.
+5. Прогнать E2E-сценарии: create/update/status-change/retry/dedup и утвердить SLA.
+
+## 8) Production Acceptance Criteria
 
 - [ ] `PRD-GATE-01` Подтверждённые `RPO/RTO` достигнуты на тестах восстановления.
 - [ ] `PRD-GATE-02` Мониторинг/алертинг покрывает бизнес-критичные сценарии intake/payment/delivery.
@@ -85,6 +109,7 @@ NDA, least-privilege доступ, аудит действий, требован
 - [ ] `PRD-GATE-04` Pentest закрыт, re-test пройден, release gate открыт.
 - [ ] `PRD-GATE-05` Пройден Go-Live Readiness Review (бизнес + тех + security).
 - [ ] `PRD-GATE-06` Модель поддержки и компетенции L1/L2/L3 подтверждены, SLA/OLA достижимы на учениях.
+- [ ] `PRD-GATE-07` CRM layer (`OrderFlow/Bpium/amoCRM`, если в scope) проходит сверку консистентности и не теряет события.
 
 ---
 
