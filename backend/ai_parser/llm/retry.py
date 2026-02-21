@@ -21,7 +21,9 @@ def _parse_retry_status_codes(raw: str) -> set[int]:
             continue
         try:
             code = int(token)
-        except Exception:
+        except (TypeError, ValueError):
+            code = None
+        if code is None:
             continue
         if 100 <= code <= 599:
             parsed.add(code)
@@ -52,7 +54,7 @@ def _retry_after_seconds(value: str | None) -> float | None:
         return None
     try:
         seconds = float(value.strip())
-    except Exception:
+    except ValueError:
         return None
     if seconds < 0:
         return None
@@ -85,6 +87,8 @@ def _post_with_retry(
     attempts = 0
     while True:
         request_kwargs = dict(kwargs)
+        # Keep an explicit timeout guard even if callers forget to pass one.
+        request_kwargs.setdefault("timeout", 30)
         if verify is not None:
             request_kwargs["verify"] = verify
         try:

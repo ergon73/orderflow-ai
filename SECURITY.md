@@ -36,3 +36,18 @@ MVP baseline already includes:
 
 Production hardening is tracked separately:
 - `docs/production_readiness_roadmap.md`.
+
+## Dependency Risk Notes
+
+As of February 21, 2026:
+- `pip-audit` reports `CVE-2025-69872` (`GHSA-w8v5-vhqr-4h9v`) in transitive dependency `diskcache==5.6.3`
+  (pulled by `instructor`).
+
+Current mitigation in this MVP:
+- no direct use of `diskcache` API in project code;
+- deployment model assumes restricted filesystem access for application runtime;
+- quality/security pipeline includes regular `pip-audit` to catch upstream fixes quickly.
+- CI temporarily ignores this exact CVE in `pip-audit` to keep the gate actionable for new issues only.
+
+Planned action:
+- upgrade `instructor`/`diskcache` as soon as a patched version is published and verify in CI.

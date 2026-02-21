@@ -23,6 +23,7 @@ This file maps project documentation by purpose.
 - `docs/benchmark_ru_models_report.md` / `.json` - model benchmark reports.
 - `docs/ai_accuracy_50_report.md` / `.json` - accuracy report on 50-case dataset.
 - `docs/coverage_report.txt` - coverage snapshot.
+- `docs/security_quality_stack.md` - quality/security stack (local + CI).
 
 ## 3) Curator Submission Package (Evaluation Artifacts)
 

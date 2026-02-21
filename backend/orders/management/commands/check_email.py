@@ -130,10 +130,9 @@ class Command(BaseCommand):
         finally:
             try:
                 mail.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("mail.close failed: %s", exc)
             try:
                 mail.logout()
-            except Exception:
-                pass
-
+            except Exception as exc:
+                logger.debug("mail.logout failed: %s", exc)

@@ -239,7 +239,7 @@ class CloudRetryTests(SimpleTestCase):
         success.json.return_value = {
             "result": {
                 "alternatives": [
-                    {"message": {"text": '{"items":[{"title":"кружка","qty":1}]}'}}  # nosec B105
+                    {"message": {"text": '{"items":[{"title":"кружка","qty":1}]}'}}
                 ]
             }
         }

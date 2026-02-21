@@ -36,7 +36,7 @@ DEBUG = env_bool("DEBUG", False)
 SECRET_KEY = (os.getenv("SECRET_KEY") or "").strip()
 if not SECRET_KEY:
     if DEBUG:
-        SECRET_KEY = "insecure-dev-key-do-not-use-in-production"
+        SECRET_KEY = "insecure-dev-key-do-not-use-in-production"  # nosec B105
     else:
         raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG is disabled.")
 ALLOWED_HOSTS = [
