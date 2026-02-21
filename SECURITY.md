@@ -47,6 +47,7 @@ Current mitigation in this MVP:
 - no direct use of `diskcache` API in project code;
 - deployment model assumes restricted filesystem access for application runtime;
 - quality/security pipeline includes regular `pip-audit` to catch upstream fixes quickly.
+- CI temporarily ignores this exact CVE in `pip-audit` to keep the gate actionable for new issues only.
 
 Planned action:
 - upgrade `instructor`/`diskcache` as soon as a patched version is published and verify in CI.

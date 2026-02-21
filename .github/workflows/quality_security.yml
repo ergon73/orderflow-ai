@@ -74,6 +74,8 @@ jobs:
   pip_audit:
     name: pip-audit
     runs-on: ubuntu-latest
+    env:
+      PIP_AUDIT_IGNORED_VULN: "CVE-2025-69872"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,7 +94,8 @@ jobs:
 
       - name: Run pip-audit
         run: |
-          pip-audit -r backend/requirements.txt --progress-spinner off
+          # Transitive dependency vulnerability is tracked in SECURITY.md until upstream fix is available.
+          pip-audit -r backend/requirements.txt --progress-spinner off --ignore-vuln "${PIP_AUDIT_IGNORED_VULN}"
 
   semgrep:
     name: Semgrep scan
