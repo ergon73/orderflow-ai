@@ -249,7 +249,7 @@ class GigaChatClient(LLMClient):
             retry_backoff_max if retry_backoff_max is not None else default_backoff_max
         )
         self.retry_status_codes = set(retry_status_codes or default_retry_status_codes)
-        self._access_token = ""
+        self._access_token = ""  # nosec B105
         self._access_token_expires_at = 0.0
 
         if not self.auth_key:

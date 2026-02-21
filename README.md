@@ -83,6 +83,10 @@ orderflow-ai/
 │   │   └── delivery.py                       # Расчет доставки (ApiShip + fallback тарифы)
 │   ├── templates/dashboard/                  # HTML-шаблоны витрины/дашборда/счета
 │   └── tests/                                # Интеграционные и бизнес-тесты
+├── .github/
+│   └── workflows/
+│       ├── quality_security.yml              # pytest+coverage, bandit, pip-audit, semgrep
+│       └── codeql.yml                        # GitHub CodeQL analysis
 ├── docs/
 │   ├── prompts.md                            # Библиотека промптов проекта
 │   ├── ai_accuracy_50_report.md              # Отчет accuracy на 50 кейсах
@@ -91,6 +95,7 @@ orderflow-ai/
 │   ├── demo_scenarios_abcd.md                # Сценарии A/B/C/D для защиты
 │   ├── screenshots_manifest.md               # Манифест скриншотов для сдачи
 │   ├── demo_video_script_5_7_min.md          # Сценарий записи демо 5-7 минут
+│   ├── security_quality_stack.md             # Инструкция по quality/security стеку
 │   ├── screenshots/                          # Скриншоты артефактов защиты
 │   ├── demo_video/                           # Записанное демо-видео
 │   ├── technical_assignment_mvp.md           # Уточненное ТЗ (reverse engineering)
@@ -99,7 +104,8 @@ orderflow-ai/
 │   ├── seed_data.py                          # Генератор демо-данных
 │   ├── benchmark_ru_models.py                # Бенчмарк/accuracy LLM
 │   ├── capture_screenshots.mjs               # Автосъёмка скриншотов защиты
-│   └── record_demo_video.mjs                 # Автозапись демо-видео (webm)
+│   ├── record_demo_video.mjs                 # Автозапись демо-видео (webm)
+│   └── run_quality_stack.ps1                 # Локальный запуск security/quality стека
 ├── docker-compose.yml                        # Оркестрация web/bot/db/nginx
 ├── .env.demo.ru.example                      # Демо-профиль без OpenAI (RF cloud)
 ├── .env.example                              # Шаблон переменных окружения
@@ -318,6 +324,19 @@ LLM_HTTP_RETRY_STATUS_CODES=408,409,425,429,500,502,503,504
 - multi-channel intake
 - dashboard endpoints
 - integration fallbacks
+
+## Security and Quality Stack
+
+Локально (из корня репозитория):
+- `./scripts/run_quality_stack.ps1 -InstallTools` (первый запуск с установкой инструментов)
+- `./scripts/run_quality_stack.ps1` (повторные прогоны)
+- на Windows `semgrep` может запускаться через Docker fallback внутри скрипта.
+
+GitHub Actions:
+- `.github/workflows/quality_security.yml` (tests+coverage, bandit, pip-audit, semgrep)
+- `.github/workflows/codeql.yml` (CodeQL)
+
+Подробная инструкция: `docs/security_quality_stack.md`.
 
 ## Benchmark RU моделей
 

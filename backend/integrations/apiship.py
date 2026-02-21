@@ -296,7 +296,7 @@ class ApiShipClient:
 
             if response.status_code == 401 and with_auth and self.login and self.password:
                 # Token expired -> re-login once.
-                self._access_token = ""
+                self._access_token = ""  # nosec B105
                 if attempts < self.max_retries:
                     attempts += 1
                     self._sleep(attempts, None)
@@ -571,7 +571,9 @@ def _extract_tariff_candidates(response: dict[str, Any]) -> list[tuple[str, int]
                 tariff_id = tariff.get("tariffId")
                 try:
                     parsed_tariff_id = int(tariff_id)
-                except Exception:
+                except (TypeError, ValueError):
+                    parsed_tariff_id = None
+                if parsed_tariff_id is None:
                     continue
                 if provider_key:
                     candidates.append((provider_key, parsed_tariff_id))
@@ -585,7 +587,9 @@ def _extract_tariff_candidates(response: dict[str, Any]) -> list[tuple[str, int]
             tariff_id = offer.get("tariffId")
             try:
                 parsed_tariff_id = int(tariff_id)
-            except Exception:
+            except (TypeError, ValueError):
+                parsed_tariff_id = None
+            if parsed_tariff_id is None:
                 continue
             if provider_key:
                 candidates.append((provider_key, parsed_tariff_id))
